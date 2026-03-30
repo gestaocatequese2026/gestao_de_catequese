@@ -1,4 +1,4 @@
-export interface RoteiroStep {
+export interface CatequeseRoteiroStep {
   id: string;
   label: string;
   tempo: string;
@@ -7,7 +7,7 @@ export interface RoteiroStep {
   tipo?: string;
 }
 
-export interface Template {
+export interface CatequeseTemplate {
   id: string;
   title: string;
   category: string;
@@ -18,10 +18,10 @@ export interface Template {
   materialApoio: string;
   publicoAlvo: 'Crianças' | 'Jovens' | 'Adultos' | 'Todos';
   textoExplicativo: string;
-  roteiro: RoteiroStep[];
+  roteiro: CatequeseRoteiroStep[];
 }
 
-const SUGGESTED_ROTEIRO: RoteiroStep[] = [
+const SUGGESTED_ROTEIRO: CatequeseRoteiroStep[] = [
   { id: '1', label: 'Acolhida', tempo: '10 min', responsavel: 'Catequista', descricao: 'Acolhida com música e saudação inicial.' },
   { id: '2', label: 'Oração Inicial', tempo: '05 min', responsavel: 'Catequizando', descricao: 'Oração espontânea ou leitura de uma prece.' },
   { id: '3', label: 'Proclamação', tempo: '15 min', responsavel: 'Catequista', descricao: 'Leitura pausada do texto bíblico do dia.' },
@@ -29,7 +29,7 @@ const SUGGESTED_ROTEIRO: RoteiroStep[] = [
   { id: '5', label: 'Oração Final', tempo: '10 min', responsavel: 'Catequista', descricao: 'Agradecimento e oração do Pai Nosso.' },
 ];
 
-export const initialTemplates: Template[] = [
+export const initialTemplates: CatequeseTemplate[] = [
   // ── QUERIGMA ──
   {
     id: 'q1',

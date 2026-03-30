@@ -6,7 +6,7 @@ import { BottomNav } from '@/components/bottom-nav';
 import { Search, Filter, Clock, X, BookOpen, Users, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Image from 'next/image';
-import { Template, initialTemplates } from '@/lib/templates';
+import { CatequeseTemplate, initialTemplates } from '@/lib/templates';
 import { ReportButton } from '@/components/report-button';
 
 const CATEGORIES = ['Todos', 'Querigma', 'Jesus Cristo', 'Sacramentos', 'Mandamentos', 'Liturgia', 'Nossa Senhora', 'Bíblia', 'Orações', 'Doutrina Social', 'Catequese de Adultos', 'Catequese de Jovens', 'Espírito Santo', 'Santidade'];
@@ -41,7 +41,7 @@ function renderMarkdown(text: string) {
 }
 
 export default function Biblioteca() {
-  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<CatequeseTemplate | null>(null);
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('Todos');
   const [activePublico, setActivePublico] = useState('Todos');
@@ -56,7 +56,7 @@ export default function Biblioteca() {
   }, [activeCategory, activePublico, search]);
 
   const grouped = useMemo(() => {
-    const map: Record<string, Template[]> = {};
+    const map: Record<string, CatequeseTemplate[]> = {};
     filtered.forEach(t => {
       if (!map[t.category]) map[t.category] = [];
       map[t.category].push(t);

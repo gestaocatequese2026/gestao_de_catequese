@@ -16,7 +16,7 @@ import { motion, AnimatePresence, Reorder, useDragControls } from 'motion/react'
 import Image from 'next/image';
 import Link from 'next/link';
 import { ConfirmationModal } from '@/components/confirmation-modal';
-import { initialTemplates, Template } from '@/lib/templates';
+import { initialTemplates, CatequeseTemplate } from '@/lib/templates';
 import { useParams } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { ReportButton } from '@/components/report-button';
@@ -26,7 +26,7 @@ import { NotificationBell } from '@/components/notification-bell';
 
 type MeetingStatus = 'Planejado' | 'Realizado' | 'Transferido' | 'Cancelado';
 
-interface RoteiroStep {
+interface CatequeseRoteiroStep {
   id: string;
   label: string;
   tempo: string;
@@ -43,7 +43,7 @@ interface Meeting {
   materialApoio: string;
   status: MeetingStatus;
   image?: string;
-  roteiro: RoteiroStep[];
+  roteiro: CatequeseRoteiroStep[];
 }
 
 export default function TurmaDetalhes() {
@@ -483,9 +483,9 @@ export default function TurmaDetalhes() {
     handleCloseModal();
   };
 
-  const handleAddRoteiroStep = () => {
+  const handleAddCatequeseRoteiroStep = () => {
     if (!selectedMeeting) return;
-    const newStep: RoteiroStep = {
+    const newStep: CatequeseRoteiroStep = {
       id: `custom-${Date.now()}`,
       label: 'Nova Etapa',
       tempo: '10 min',
@@ -498,7 +498,7 @@ export default function TurmaDetalhes() {
     });
   };
 
-  const handleRemoveRoteiroStep = (stepId: string) => {
+  const handleRemoveCatequeseRoteiroStep = (stepId: string) => {
     if (!selectedMeeting) return;
     setSelectedMeeting({
       ...selectedMeeting,
@@ -549,7 +549,7 @@ export default function TurmaDetalhes() {
   const applyTemplate = (templateId: string) => {
     if (!selectedMeeting) return;
     
-    const template = initialTemplates.find(t => t.id === templateId);
+    const template = initialTemplates.find(t => t.id === templateId) as CatequeseTemplate | undefined;
     if (!template) return;
 
     const templateMeeting: Meeting = {
@@ -1417,7 +1417,7 @@ export default function TurmaDetalhes() {
                       {isEditing && (
                         <button 
                           type="button"
-                          onClick={handleAddRoteiroStep}
+                          onClick={handleAddCatequeseRoteiroStep}
                           className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-[#1a73e8] hover:bg-[#1a73e8]/5 px-3 py-1.5 rounded-lg transition-all"
                         >
                           <Plus size={14} />
@@ -1439,7 +1439,7 @@ export default function TurmaDetalhes() {
                               key={step.id} 
                               step={step} 
                               isEditing={isEditing} 
-                              onDelete={() => handleRemoveRoteiroStep(step.id)}
+                              onDelete={() => handleRemoveCatequeseRoteiroStep(step.id)}
                               catechists={catechists}
                             />
                           ))}
@@ -2859,7 +2859,7 @@ function StatusBadge({ status, onStatusChange, className, position = 'bottom', r
   );
 }
 
-function DraggableRoteiroItem({ step, isEditing, onDelete, catechists }: { step: RoteiroStep, isEditing: boolean, onDelete?: () => void, catechists: any[] }) {
+function DraggableRoteiroItem({ step, isEditing, onDelete, catechists }: { step: CatequeseRoteiroStep, isEditing: boolean, onDelete?: () => void, catechists: any[] }) {
   const controls = useDragControls();
   
   return (
@@ -2874,7 +2874,7 @@ function DraggableRoteiroItem({ step, isEditing, onDelete, catechists }: { step:
   );
 }
 
-function RoteiroItem({ step, isEditing, dragControls, onDelete, catechists }: { step: RoteiroStep, isEditing: boolean, dragControls?: any, onDelete?: () => void, catechists: any[] }) {
+function RoteiroItem({ step, isEditing, dragControls, onDelete, catechists }: { step: CatequeseRoteiroStep, isEditing: boolean, dragControls?: any, onDelete?: () => void, catechists: any[] }) {
   const { id, label, tipo, tempo, responsavel, descricao } = step;
   const hasTypeSelect = id === 'oracaoInicial';
   const isCustom = id.startsWith('custom-');
