@@ -207,7 +207,12 @@ export default function Biblioteca() {
                   {[
                     { label: 'Tema', value: selectedTemplate.tema },
                     { label: 'Leitura Bíblica', value: selectedTemplate.leituraBiblica },
-                    { label: 'Material de Apoio', value: selectedTemplate.materialApoio },
+                    { 
+                      label: 'Material de Apoio', 
+                      value: typeof selectedTemplate.materialApoio === 'string' 
+                        ? selectedTemplate.materialApoio 
+                        : selectedTemplate.materialApoio.map(m => m.label).join(', ') 
+                    },
                   ].map(({ label, value }) => (
                     <div key={label} className="bg-[#f3f4f5] rounded-xl p-3">
                       <p className="text-[10px] font-bold uppercase tracking-widest text-[#717783] mb-1">{label}</p>

@@ -1,3 +1,10 @@
+export interface MaterialApoioItem {
+  id: string;
+  label: string;
+  url?: string;
+  tipo: 'Link' | 'PDF' | 'Fisico' | 'Outro';
+}
+
 export interface CatequeseRoteiroStep {
   id: string;
   label: string;
@@ -15,7 +22,7 @@ export interface CatequeseTemplate {
   image: string;
   tema: string;
   leituraBiblica: string;
-  materialApoio: string;
+  materialApoio: MaterialApoioItem[] | string;
   publicoAlvo: 'Crianças' | 'Jovens' | 'Adultos' | 'Todos';
   textoExplicativo: string;
   roteiro: CatequeseRoteiroStep[];

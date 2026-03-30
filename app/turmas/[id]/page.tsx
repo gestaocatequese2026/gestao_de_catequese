@@ -549,16 +549,18 @@ export default function TurmaDetalhes() {
   const applyTemplate = (templateId: string) => {
     if (!selectedMeeting) return;
     
-    const template = initialTemplates.find(t => t.id === templateId) as CatequeseTemplate | undefined;
-    if (!template) return;
+    const tpl = initialTemplates.find(t => t.id === templateId);
+    if (!tpl) return;
 
     const templateMeeting: Meeting = {
       ...selectedMeeting,
-      tema: template.title,
-      leituraBiblica: template.leituraBiblica,
-      materialApoio: template.materialApoio,
-      image: template.image,
-      roteiro: template.roteiro.map(step => ({
+      tema: tpl.title,
+      leituraBiblica: tpl.leituraBiblica,
+      materialApoio: typeof tpl.materialApoio === 'string' 
+        ? tpl.materialApoio 
+        : tpl.materialApoio.map(m => m.label).join(', '),
+      image: tpl.image,
+      roteiro: tpl.roteiro.map(step => ({
         id: step.id,
         label: step.label,
         tempo: step.tempo,
