@@ -1,3 +1,12 @@
+export interface RoteiroStep {
+  id: string;
+  label: string;
+  tempo: string;
+  responsavel: string;
+  descricao: string;
+  tipo?: string;
+}
+
 export interface Template {
   id: string;
   title: string;
@@ -9,7 +18,16 @@ export interface Template {
   materialApoio: string;
   publicoAlvo: 'Crianças' | 'Jovens' | 'Adultos' | 'Todos';
   textoExplicativo: string;
+  roteiro: RoteiroStep[];
 }
+
+const SUGGESTED_ROTEIRO: RoteiroStep[] = [
+  { id: '1', label: 'Acolhida', tempo: '10 min', responsavel: 'Catequista', descricao: 'Acolhida com música e saudação inicial.' },
+  { id: '2', label: 'Oração Inicial', tempo: '05 min', responsavel: 'Catequizando', descricao: 'Oração espontânea ou leitura de uma prece.' },
+  { id: '3', label: 'Proclamação', tempo: '15 min', responsavel: 'Catequista', descricao: 'Leitura pausada do texto bíblico do dia.' },
+  { id: '4', label: 'Reflexão e Atividade', tempo: '20 min', responsavel: 'Todos', descricao: 'Conversa sobre o tema e atividade prática proposta.' },
+  { id: '5', label: 'Oração Final', tempo: '10 min', responsavel: 'Catequista', descricao: 'Agradecimento e oração do Pai Nosso.' },
+];
 
 export const initialTemplates: Template[] = [
   // ── QUERIGMA ──
@@ -31,7 +49,14 @@ O Concílio Vaticano II, especialmente no Decreto "Ad Gentes", destaca que o pri
 A Exortação Apostólica "Evangelii Gaudium" (Papa Francisco, n.164) reforça: "Na catequese, o primeiro anúncio ou querigma tem um papel fundamental, que deve ocupar o centro da atividade evangelizadora". O catequista não é apenas um professor de religião, mas uma testemunha do amor de Deus.
 
 **Para o catequista:**
-Ajude os catequizandos a perceberem que ser cristão não é seguir uma lista de regras, mas responder a um amor. Use exemplos concretos de amor gratuito — a parábola do filho pródigo, a cura dos enfermos por Jesus. Convide cada um a uma resposta pessoal: "O que esse amor de Deus muda na minha vida?"`
+Ajude os catequizandos a perceberem que ser cristão não é seguir uma lista de regras, mas responder a um amor. Use exemplos concretos de amor gratuito — a parábola do filho pródigo, a cura dos enfermos por Jesus. Convide cada um a uma resposta pessoal: "O que esse amor de Deus muda na minha vida?"`,
+    roteiro: [
+      { id: '1', label: 'Acolhida', tempo: '10 min', responsavel: 'Catequista', descricao: 'Acolher os catequizandos com alegria e música.' },
+      { id: '2', label: 'Oração Inicial', tempo: '05 min', responsavel: 'Catequizando', descricao: 'Oração espontânea agradecendo pelo amor de Deus.' },
+      { id: '3', label: 'Proclamação da Palavra', tempo: '15 min', responsavel: 'Catequista', descricao: 'Leitura de 1 João 4:7-12.' },
+      { id: '4', label: 'Partilha e Dinâmica', tempo: '10 min', responsavel: 'Todos', descricao: 'Conversa sobre como sentimos o amor de Deus.' },
+      { id: '5', label: 'Oração Final e Envio', tempo: '05 min', responsavel: 'Catequista', descricao: 'Oração do Pai Nosso.' },
+    ]
   },
   {
     id: 'q2',
@@ -49,7 +74,14 @@ Ajude os catequizandos a perceberem que ser cristão não é seguir uma lista de
 O Catecismo da Igreja Católica (n.426) afirma: "No centro da catequese encontramos essencialmente uma Pessoa, a de Jesus de Nazaré". A Diretório Geral para a Catequese (2020, n.57) reforça que a catequese deve ser uma escola de discipulado missionário, onde os catequizandos encontram o Senhor vivo.
 
 **Para o catequista:**
-Provoque a pergunta de Jesus: "Mas vós, quem dizeis que eu sou?" (Mt 16,15). Incentive o compartilhamento de experiências pessoais de fé. Mostre que Jesus não é um personagem histórico distante, mas o Ressuscitado presente hoje. A oração, a Eucaristia e a Palavra de Deus são os principais caminhos desse encontro.`
+Provoque a pergunta de Jesus: "Mas vós, quem dizeis que eu sou?" (Mt 16,15). Incentive o compartilhamento de experiências pessoais de fé. Mostre que Jesus não é um personagem histórico distante, mas o Ressuscitado presente hoje. A oração, a Eucaristia e a Palavra de Deus são os principais caminhos desse encontro.`,
+    roteiro: [
+      { id: '1', label: 'Acolhida', tempo: '10 min', responsavel: 'Catequista', descricao: 'Preparação do ambiente com uma cruz e Bíblia.' },
+      { id: '2', label: 'Oração Inicial', tempo: '10 min', responsavel: 'Catequista', descricao: 'Momento de silêncio para interiorização.' },
+      { id: '3', label: 'Proclamação da Palavra', tempo: '10 min', responsavel: 'Catequizando', descricao: 'Leitura de João 3:16.' },
+      { id: '4', label: 'Partilha e Dinâmica', tempo: '20 min', responsavel: 'Todos', descricao: 'Partilha: quem é Jesus para mim?' },
+      { id: '5', label: 'Compromisso e Oração', tempo: '10 min', responsavel: 'Todos', descricao: 'Gesto concreto de seguimento.' },
+    ]
   },
   // ── SACRAMENTOS ──
   {
@@ -74,7 +106,14 @@ O Catecismo da Igreja Católica (n.1213) ensina que "o santo Batismo é o fundam
 — **Veste branca**: revestir-se de Cristo.
 
 **Para o catequista:**
-Conecte o batismo à vida cotidiana: somos batizados, portanto amados e chamados. Ajude as crianças a valorizarem o dia do seu batismo como o "aniversário de filho de Deus".`
+Conecte o batismo à vida cotidiana: somos batizados, portanto amados e chamados. Ajude as crianças a valorizarem o dia do seu batismo como o "aniversário de filho de Deus".`,
+    roteiro: [
+      { id: '1', label: 'Acolhida', tempo: '10 min', responsavel: 'Catequista', descricao: 'Recordar o dia do nascimento e o dia do batismo.' },
+      { id: '2', label: 'Explicação dos Símbolos', tempo: '15 min', responsavel: 'Catequista', descricao: 'Demonstração da água, vela, óleo e veste.' },
+      { id: '3', label: 'Proclamação da Palavra', tempo: '05 min', responsavel: 'Catequizando', descricao: 'Mateus 3:13-17.' },
+      { id: '4', label: 'Dinâmica', tempo: '15 min', responsavel: 'Todos', descricao: 'Renovação das promessas do batismo.' },
+      { id: '5', label: 'Oração Final', tempo: '05 min', responsavel: 'Todos', descricao: 'Oração do Creio.' },
+    ]
   },
   {
     id: 's2',
@@ -85,7 +124,7 @@ Conecte o batismo à vida cotidiana: somos batizados, portanto amados e chamados
     publicoAlvo: 'Crianças',
     tema: 'A Presença Real de Jesus na Eucaristia',
     leituraBiblica: 'Lucas 22:14-20',
-    materialApoio: 'Pão, uva, cálice',
+    materialApoio: 'Pão, uva, cálice, gravuras da Santa Ceia',
     textoExplicativo: `A Eucaristia é "fonte e cúpula de toda a vida cristã" (LG 11). É o memorial da Última Ceia, a presença real de Cristo sob as espécies do pão e do vinho, e o sacrifício que renova o de Calvário.
 
 **Fundamentos teológicos:**
@@ -99,7 +138,14 @@ O CIC (n.1324) ensina que a Eucaristia contém todo o bem espiritual da Igreja. 
 — **Antecipação** do banquete celeste.
 
 **Para o catequista:**
-Prepare as crianças para a Primeira Comunhão com reverência e alegria. Destaque que receber Jesus na Eucaristia é o momento mais íntimo da vida cristã. Ensine a postura de respeito e adoração.`
+Prepare as crianças para a Primeira Comunhão com reverência e alegria. Destaque que receber Jesus na Eucaristia é o momento mais íntimo da vida cristã. Ensine a postura de respeito e adoração.`,
+    roteiro: [
+      { id: '1', label: 'Acolhida', tempo: '10 min', responsavel: 'Catequista', descricao: 'Conversa sobre a importância do alimento.' },
+      { id: '2', label: 'Oração', tempo: '10 min', responsavel: 'Catequizando', descricao: 'Agradecimento pelo pão de cada dia.' },
+      { id: '3', label: 'Proclamação', tempo: '10 min', responsavel: 'Catequista', descricao: 'Lucas 22:14-20.' },
+      { id: '4', label: 'Dinâmica', tempo: '30 min', responsavel: 'Todos', descricao: 'Montar a mesa da partilha.' },
+      { id: '5', label: 'Adoração', tempo: '30 min', responsavel: 'Todos', descricao: 'Breve momento na capela.' },
+    ]
   },
   {
     id: 's3',
@@ -124,7 +170,14 @@ Prepare as crianças para a Primeira Comunhão com reverência e alegria. Destaq
 5. Satisfação (penitência) — reparação do mal causado.
 
 **Para o catequista:**
-Use a parábola do Filho Pródigo para mostrar que Deus é um Pai que corre ao nosso encontro. Desmitifique o medo da confissão; ela é encontro, não tribunal. A misericórdia de Deus é sempre maior que qualquer pecado.`
+Use a parábola do Filho Pródigo para mostrar que Deus é um Pai que corre ao nosso encontro. Desmitifique o medo da confissão; ela é encontro, não tribunal. A misericórdia de Deus é sempre maior que qualquer pecado.`,
+    roteiro: [
+      { id: '1', label: 'Acolhida', tempo: '10 min', responsavel: 'Catequista', descricao: 'Dinâmica do coração de papel.' },
+      { id: '2', label: 'Oração', tempo: '10 min', responsavel: 'Todos', descricao: 'Ato de Contrição.' },
+      { id: '3', label: 'Proclamação', tempo: '15 min', responsavel: 'Catequista', descricao: 'Parábola do Filho Pródigo (Lucas 15).' },
+      { id: '4', label: 'Explicação', tempo: '15 min', responsavel: 'Catequista', descricao: 'Os 5 passos da confissão.' },
+      { id: '5', label: 'Encerramento', tempo: '10 min', responsavel: 'Todos', descricao: 'Abraço simbólico da paz.' },
+    ]
   },
   {
     id: 's4',
@@ -149,7 +202,14 @@ O CIC (n.1285) ensina que a Confirmação está tão intimamente ligada ao Batis
 — Caráter indelével (marca espiritual permanente).
 
 **Para o catequista jovem:**
-A Crisma não é um "fim" da catequese, mas um começo de missão. Desafie os jovens: quais dons do Espírito você quer colocar a serviço da comunidade?`
+A Crisma não é um "fim" da catequese, mas um começo de missão. Desafie os jovens: quais dons do Espírito você quer colocar a serviço da comunidade?`,
+    roteiro: [
+      { id: '1', label: 'Acolhida', tempo: '10 min', responsavel: 'Catequista', descricao: 'Música sobre o Espírito Santo.' },
+      { id: '2', label: 'Proclamação', tempo: '10 min', responsavel: 'Jovens', descricao: 'Atos 2:1-4.' },
+      { id: '3', label: 'Estudo', tempo: '20 min', responsavel: 'Catequista', descricao: 'Os 7 dons do Espírito Santo.' },
+      { id: '4', label: 'Dinâmica', tempo: '15 min', responsavel: 'Todos', descricao: 'Mapa dos talentos e dons.' },
+      { id: '5', label: 'Oração', tempo: '05 min', responsavel: 'Todos', descricao: 'Oração Veni Creator Spiritus.' },
+    ]
   },
   {
     id: 's5',
@@ -160,7 +220,7 @@ A Crisma não é um "fim" da catequese, mas um começo de missão. Desafie os jo
     publicoAlvo: 'Adultos',
     tema: 'Amor conjugal como sinal do amor de Deus',
     leituraBiblica: 'Marcos 10:6-9',
-    materialApoio: 'Alianças ilustrativas, Amoris Laetitia',
+    materialApoio: 'Alianças ilustrativas, Amoris Laetitia, Fotos de família',
     textoExplicativo: `O Matrimônio é o sacramento pelo qual homem e mulher formam uma aliança indissolúvel de amor, tornando-se sinal do amor de Cristo pela Igreja.
 
 **Fundamentos teológicos:**
@@ -173,7 +233,8 @@ A Exortação Apostólica "Amoris Laetitia" (Papa Francisco, 2016) desenvolveu u
 — **Fecundidade**: abertura à vida.
 
 **Para o catequista:**
-Apresente o matrimônio como vocação e missão, não apenas contrato legal. A família é "Igreja doméstica" — o primeiro lugar onde se aprende a amar.`
+Apresente o matrimônio como vocação e missão, não apenas contrato legal. A família é "Igreja doméstica" — o primeiro lugar onde se aprende a amar.`,
+    roteiro: SUGGESTED_ROTEIRO
   },
   // ── JESUS CRISTO ──
   {
@@ -185,7 +246,7 @@ Apresente o matrimônio como vocação e missão, não apenas contrato legal. A 
     publicoAlvo: 'Todos',
     tema: 'A identidade de Jesus: verdadeiro Deus e verdadeiro homem',
     leituraBiblica: 'João 1:1-14',
-    materialApoio: 'Bíblia, imagens de Jesus',
+    materialApoio: 'Bíblia, imagens de Jesus, Ícones bizantinos',
     textoExplicativo: `A pergunta central da fé cristã: "Quem é Jesus?" Ele é ao mesmo tempo verdadeiro Deus e verdadeiro homem — o mistério da Encarnação. Esta é a confissão fundamental do Credo.
 
 **Fundamentos teológicos:**
@@ -200,7 +261,8 @@ O Concílio de Niceia (325) definiu que Jesus é "Deus de Deus, luz da luz, gera
 
 **Para crianças:** Use histórias dos Evangelhos para mostrar Jesus que brinca, chora, ri e ama.
 **Para jovens:** Explore a pergunta: "O que significa que Jesus é meu contemporâneo?"
-**Para adultos:** Aprofunde a cristologia e o significado da Encarnação para a vida hoje.`
+**Para adultos:** Aprofunde a cristologia e o significado da Encarnação para a vida hoje.`,
+    roteiro: SUGGESTED_ROTEIRO
   },
   {
     id: 'jc2',
@@ -221,7 +283,8 @@ O Concílio de Niceia (325) definiu que Jesus é "Deus de Deus, luz da luz, gera
 As 14 estações da Via Sacra oferecem um roteiro completo para meditar a Paixão. Cada estação conecta o sofrimento de Jesus aos sofrimentos humanos de hoje: a injustiça, o abandono, a dor físca, a solidariedade dos que ajudam.
 
 **Para o catequista:**
-Não apresente a cruz como punição, mas como amor total. "Não há amor maior do que dar a vida pelos amigos" (Jo 15,13). Convide à meditação: onde você vê a cruz de Cristo hoje no mundo?`
+Não apresente a cruz como punição, mas como amor total. "Não há amor maior do que dar a vida pelos amigos" (Jo 15,13). Convide à meditação: onde você vê a cruz de Cristo hoje no mundo?`,
+    roteiro: SUGGESTED_ROTEIRO
   },
   {
     id: 'jc3',
@@ -245,7 +308,8 @@ A Ressurreição não é simples retorno à vida física (como Lázaro), mas tra
 — A morte não tem a última palavra.
 
 **Para o catequista:**
-A Páscoa não é apenas festa do passado — é a forma de vida do cristão. "Somos um povo pascal", que vive a passagem da morte para a vida em cada escolha de amor.`
+A Páscoa não é apenas festa do passado — é a forma de vida do cristão. "Somos um povo pascal", que vive a passagem da morte para a vida em cada escolha de amor.`,
+    roteiro: SUGGESTED_ROTEIRO
   },
   {
     id: 'jc4',
@@ -269,7 +333,8 @@ São comparações tiradas da vida cotidiana (semeador, ovelha perdida, fariseu 
 — **Ovelha Perdida** (Lc 15): Deus busca cada um.
 
 **Para o catequista:**
-Use dramatizações! Crianças aprendem mais fazendo do que ouvindo. Após encenarem a parábola, faça perguntas simples: "Com qual personagem você mais se identificou?" Isso provoca a aplicação pessoal da mensagem.`
+Use dramatizações! Crianças aprendem mais fazendo do que ouvindo. Após encenarem a parábola, faça perguntas simples: "Com qual personagem você mais se identificou?" Isso provoca a aplicação pessoal da mensagem.`,
+    roteiro: SUGGESTED_ROTEIRO
   },
   // ── BÍBLIA ──
   {
@@ -295,7 +360,8 @@ A Constituição Dogmática "Dei Verbum" (Vaticano II, n.11) ensina que a Bíbli
 História, lei, poesia, profecia, sabedoria, cartas, apocalipse — cada gênero exige uma leitura diferente.
 
 **Para o catequista:**
-Ensine a encontrar uma passagem (livro, capítulo, versículo). Incentive a Leitura Orante (Lectio Divina): ler, meditar, orar, contemplar. A Bíblia não é livro de respostas prontas — é diálogo com Deus.`
+Ensine a encontrar uma passagem (livro, capítulo, versículo). Incentive a Leitura Orante (Lectio Divina): ler, meditar, orar, contemplar. A Bíblia não é livro de respostas prontas — é diálogo com Deus.`,
+    roteiro: SUGGESTED_ROTEIRO
   },
   {
     id: 'b2',
@@ -316,7 +382,8 @@ A Igreja ensina que Gênesis usa linguagem simbólica e poética (gênero liter�
 Não é um mito, mas a realidade de que a humanidade se afastou de Deus (Gn 3). Seus efeitos: desordem interior, sofrimento, morte, tendência ao mal. A boa notícia: a promessa da redenção já está em Gn 3,15 ("Proto-evangelho").
 
 **Para o catequista:**
-Com crianças: use a história da criação com imagens e cores. Pergunte: "O que você mais ama na criação de Deus?" Conecte com o cuidado ambiental (Laudato Si). Com adultos: aprofunde o significado do pecado original na vida pessoal e social.`
+Com crianças: use a história da criação com imagens e cores. Pergunte: "O que você mais ama na criação de Deus?" Conecte com o cuidado ambiental (Laudato Si). Com adultos: aprofunde o significado do pecado original na vida pessoal e social.`,
+    roteiro: SUGGESTED_ROTEIRO
   },
   {
     id: 'b3',
@@ -341,7 +408,8 @@ Santo Agostinho dizia: "Que beleza! Que perfeição! São as vozes da Igreja, vo
 — **Sapienciais**: sabedoria (Sl 1).
 
 **Para o catequista:**
-Incentive a ler um Salmo por dia. Com adultos: proponha escrever o "salmo pessoal" — expressando a Deus seus medos, alegrias e pedidos com palavras próprias. Os Salmos mostram que diante de Deus podemos ser completamente honestos.`
+Incentive a ler um Salmo por dia. Com adultos: proponha escrever o "salmo pessoal" — expressando a Deus seus medos, alegrias e pedidos com palavras próprias. Os Salmos mostram que diante de Deus podemos ser completamente honestos.`,
+    roteiro: SUGGESTED_ROTEIRO
   },
   // ── MANDAMENTOS ──
   {
@@ -366,7 +434,8 @@ O Decálogo (dez palavras) foi dado por Deus a Moisés como expressão da Alian�
 **O mandamento novo** (Jo 13,34): "Amai-vos uns aos outros como eu vos amei." Jesus eleva o padrão do amor: não apenas "não faças o mal", mas "faz o bem ativamente".
 
 **Para o catequista:**
-Apresente os mandamentos não como restrições, mas como proteções. Pergunte: "O que aconteceria com a sociedade se todos vivessem os mandamentos?" Use exemplos do cotidiano dos catequizandos.`
+Apresente os mandamentos não como restrições, mas como proteções. Pergunte: "O que aconteceria com a sociedade se todos vivessem os mandamentos?" Use exemplos do cotidiano dos catequizandos.`,
+    roteiro: SUGGESTED_ROTEIRO
   },
   {
     id: 'm2',
@@ -397,7 +466,8 @@ Jesus não diz "serão bem-aventurados", mas "são bem-aventurados" — no prese
 8. Os perseguidos por causa da justiça
 
 **Para jovens:**
-Desafie-os: qual bem-aventurança é mais difícil para vocês? Qual sociedade teríamos se todos vivessem as beatitudes?`
+Desafie-os: qual bem-aventurança é mais difícil para vocês? Qual sociedade teríamos se todos vivessem as beatitudes?`,
+    roteiro: SUGGESTED_ROTEIRO
   },
   // ── ORAÇÕES ──
   {
@@ -425,7 +495,8 @@ Tertuliano (séc. II) chamou o Pai Nosso de "sumário de todo o Evangelho". O CI
 — **"livra-nos do mal"**: súplica de proteção.
 
 **Para o catequista:**
-Ensine o Pai Nosso não para memorizar, mas para viver. Cada petição é um programa de vida. Pergunte: "Quando você reza 'como nós perdoamos', você pensa em alguém que precisa perdoar?"`
+Ensine o Pai Nosso não para memorizar, mas para viver. Cada petição é um programa de vida. Pergunte: "Quando você reza 'como nós perdoamos', você pensa em alguém que precisa perdoar?"`,
+    roteiro: SUGGESTED_ROTEIRO
   },
   {
     id: 'o2',
@@ -450,7 +521,8 @@ Ensine o Pai Nosso não para memorizar, mas para viver. Cada petição é um pro
 4. **Contemplatio** (contemplação): Descansar em Deus. Silêncio fecundo onde Deus age além das palavras.
 
 **Para o catequista:**
-Pratique a Lectio Divina com o grupo antes de ensiná-la. Comece com textos curtos e narrativos (uma parábola, uma cura). O silêncio pode ser desconfortável no início — normalize-o. Deus fala frequentemente no silêncio (1Rs 19,12).`
+Pratique a Lectio Divina com o grupo antes de ensiná-la. Comece com textos curtos e narrativos (uma parábola, uma cura). O silêncio pode ser desconfortável no início — normalize-o. Deus fala frequentemente no silêncio (1Rs 19,12).`,
+    roteiro: SUGGESTED_ROTEIRO
   },
   // ── NOSSA SENHORA ──
   {
@@ -479,7 +551,8 @@ Os quatro dogmas marianos:
 — O Calvário: Mãe da Igreja (Jo 19,25-27).
 
 **Para o catequista:**
-Apresente Maria não como ser inalcançável, mas como a primeira discípula. Seu "Faça-se em mim segundo a tua Palavra" é o modelo de toda resposta à fé. O Terço é escola de oração contemplativa.`
+Apresente Maria não como ser inalcançável, mas como a primeira discípula. Seu "Faça-se em mim segundo a tua Palavra" é o modelo de toda resposta à fé. O Terço é escola de oração contemplativa.`,
+    roteiro: SUGGESTED_ROTEIRO
   },
   // ── LITURGIA ──
   {
@@ -504,7 +577,8 @@ Apresente Maria não como ser inalcançável, mas como a primeira discípula. Se
 O Concílio Vaticano II pediu a "participação plena, consciente e ativa" dos fiéis. Não se vai à Missa para "cumprir obrigação", mas para ser transformado pelo encontro com o Ressuscitado.
 
 **Para o catequista:**
-Explique cada parte com seus símbolos e gestos. Por que nos persignamos? Por que fazemos genuflexão? Por que o silêncio após a comunhão? Participar com consciência transforma a Missa de rito em vida.`
+Explique cada parte com seus símbolos e gestos. Por que nos persignamos? Por que fazemos genuflexão? Por que o silêncio após a comunhão? Participar com consciência transforma a Missa de rito em vida.`,
+    roteiro: SUGGESTED_ROTEIRO
   },
   {
     id: 'l2',
@@ -533,7 +607,8 @@ Explique cada parte com seus símbolos e gestos. Por que nos persignamos? Por qu
 Verde = esperança; Roxo = penitência/espera; Vermelho = Espírito/mártires; Branco/Dourado = alegria/solenidade; Rosa = alegria antecipada (3º domingo do Advento e 4º da Quaresma).
 
 **Para o catequista:**
-Use a roda do Ano Litúrgico visualmente. Crianças adoram as cores! Pergunte: "Em que tempo litúrgico estamos? O que estamos celebrando juntos como Igreja?"`
+Use a roda do Ano Litúrgico visualmente. Crianças adoram as cores! Pergunte: "Em que tempo litúrgico estamos? O que estamos celebrando juntos como Igreja?"`,
+    roteiro: SUGGESTED_ROTEIRO
   },
   // ── DOUTRINA SOCIAL ──
   {
@@ -561,7 +636,8 @@ Use a roda do Ano Litúrgico visualmente. Crianças adoram as cores! Pergunte: "
 O Papa Francisco escreveu a carta apostólica como urgente atualização da Laudato Si, diante da aceleração da crise climática.
 
 **Para jovens:**
-Esta é a geração da crise climática. Como a fé cristã me convida a agir? O que posso mudar no meu estilo de vida? Conecte a fé à ação concreta: reciclagem, consumo consciente, cuidado com a natureza local.`
+Esta é a geração da crise climática. Como a fé cristã me convida a agir? O que posso mudar no meu estilo de vida? Conecte a fé à ação concreta: reciclagem, consumo consciente, cuidado com a natureza local.`,
+    roteiro: SUGGESTED_ROTEIRO
   },
   {
     id: 'ds2',
@@ -586,7 +662,8 @@ Desde a Rerum Novarum (Leão XIII, 1891) até a Laudato Si (Francisco, 2015), a 
 — **Solidariedade**: "somos todos responsáveis por todos" (João Paulo II).
 
 **Para o catequista adulto:**
-Provoque a consciência crítica: Como nosso estilo de vida contribui para a exclusão dos pobres? A fé que não tem consequências sociais é fé incompleta (Tiago 2,14-26). Mostre exemplos de engajamento social cristão.`
+Provoque a consciência crítica: Como nosso estilo de vida contribui para a exclusão dos pobres? A fé que não tem consequências sociais é fé incompleta (Tiago 2,14-26). Mostre exemplos de engajamento social cristão.`,
+    roteiro: SUGGESTED_ROTEIRO
   },
   // ── CATEQUESE DE ADULTOS ──
   {
@@ -613,7 +690,8 @@ O Credo Niceno foi formulado nos Concílios de Niceia (325) e Constantinopla (38
 O Credo distingue a fé ortodoxa das heresias. Conhecer o Credo é conhecer o que a Igreja crê — não apenas individualmente, mas como corpo eclesial ("Creio" = acredito com a Igreja).
 
 **Para adultos:**
-Proponha o estudo artigo por artigo. Que diferença faz acreditar em "a ressurreição da carne"? Ou em "a comunhão dos santos"? O Credo não é só teoria — tem consequências para a vida.`
+Proponha o estudo artigo por artigo. Que diferença faz acreditar em "a ressurreição da carne"? Ou em "a comunhão dos santos"? O Credo não é só teoria — tem consequências para a vida.`,
+    roteiro: SUGGESTED_ROTEIRO
   },
   {
     id: 'ca2',
@@ -643,7 +721,8 @@ Não é simplesmente "fazer o que se sente", nem "seguir regras sem pensar". É 
 5. Resolução: como amanhã posso melhorar?
 
 **Para o catequista:**
-Ensine adultos que a fé matura não é apenas cumprir ritos — é aprender a perceber Deus na vida concreta: no trabalho, nas relações, nas decisões cotidianas.`
+Ensine adultos que a fé matura não é apenas cumprir ritos — é aprender a perceber Deus na vida concreta: no trabalho, nas relações, nas decisões cotidianas.`,
+    roteiro: SUGGESTED_ROTEIRO
   },
   // ── CATEQUESE JOVEM ──
   {
@@ -673,7 +752,8 @@ A ideia de que "ciência prova que Deus não existe" é uma ideologia, não uma 
 A Igreja aceita a evolução como teoria científica válida, desde que não seja transformada em filosofia materialista que nega o espírito e Deus.
 
 **Para jovens:**
-Não fuja das perguntas difíceis — abrace-as! Deus não tem medo das perguntas. A busca sincera da verdade é sempre caminho para Deus. Apresente figuras de intelectuais cristãos contemporâneos.`
+Não fuja das perguntas difíceis — abrace-as! Deus não tem medo das perguntas. A busca sincera da verdade é sempre caminho para Deus. Apresente figuras de intelectuais cristãos contemporâneos.`,
+    roteiro: SUGGESTED_ROTEIRO
   },
   {
     id: 'cj2',
@@ -703,7 +783,8 @@ Não fuja das perguntas difíceis — abrace-as! Deus não tem medo das pergunta
 — Onde estas três coisas se encontram? Aí pode estar minha vocação.
 
 **Para o catequista:**
-Convide testemunhos de pessoas com diferentes vocações. Mostre que nenhuma vocação é superior — todas são caminhos de santidade e missão.`
+Convide testemunhos de pessoas com diferentes vocações. Mostre que nenhuma vocação é superior — todas são caminhos de santidade e missão.`,
+    roteiro: SUGGESTED_ROTEIRO
   },
   // ── ESPÍRITO SANTO ──
   {
@@ -732,7 +813,8 @@ Sabedoria · Entendimento · Conselho · Fortaleza · Ciência · Piedade · Tem
 Caridade, alegria, paz, paciência, benignidade, bondade, longanimidade, mansidão, fé, modéstia, continência, castidade.
 
 **Para o catequista:**
-O Espírito Santo não é apenas o "Deus do Pentecostes" — é o companheiro permanente do cristão. Incentive a abertura ao Espírito na oração diária: "Veni, Sancte Spiritus" — Vem, Espírito Santo.`
+O Espírito Santo não é apenas o "Deus do Pentecostes" — é o companheiro permanente do cristão. Incentive a abertura ao Espírito na oração diária: "Veni, Sancte Spiritus" — Vem, Espírito Santo.`,
+    roteiro: SUGGESTED_ROTEIRO
   },
   // ── SANTIDADE ──
   {
@@ -762,5 +844,6 @@ A Igreja beatificou e canonizou pais de família, professores, médicos, artista
 
 **Para o catequista:**
 Mostre que santidade não é sinônimo de tristeza ou rigidez. Os santos são as pessoas mais livres e alegres que existiram. Beato Carlo Acutis dizia: "A Eucaristia é minha autoestrada para o Céu."`,
+    roteiro: SUGGESTED_ROTEIRO
   },
 ];

@@ -17,10 +17,10 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ConfirmationModal } from '@/components/confirmation-modal';
 import { initialTemplates, Template } from '@/lib/templates';
-
 import { useParams } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { ReportButton } from '@/components/report-button';
+import { NotificationBell } from '@/components/notification-bell';
 
 // Mock Data removed
 
