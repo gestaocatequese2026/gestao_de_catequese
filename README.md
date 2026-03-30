@@ -1,20 +1,43 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Gestão de Catequese IVC 🕊️
 
-# Run and deploy your AI Studio app
+Um sistema moderno e intuitivo para gestão de turmas, encontros e materiais de catequese (Iniciação à Vida Cristã).
 
-This contains everything you need to run your app locally.
+## ✨ Funcionalidades
 
-View your app in AI Studio: https://ai.studio/apps/3bc85e30-e015-439e-9925-3f2f03657518
+- **Gestão de Turmas**: Organize seus catequizandos por nível e horário.
+- **Biblioteca de Encontros**: Modelos prontos para diversos temas (Querigma, Sacramentos, Bíblia).
+- **Roteiros Dinâmicos**: Cronômetro integrado para controle do tempo de cada etapa do encontro.
+- **Relatórios**: Geração automática de listas de presença e cronogramas.
+- **Material de Apoio**: Central de conteúdos para facilitar o preparo do catequista.
 
-## Run Locally
+## 🚀 Tecnologias
 
-**Prerequisites:**  Node.js
+- **Framework**: [Next.js](https://nextjs.org/)
+- **State Management**: [Zustand](https://zustand-demo.pmnd.rs/)
+- **Estilização**: Tailwind CSS & Framer Motion
+- **Banco de Dados**: Supabase (PostgreSQL)
+- **Ícones**: Lucide React
 
+## 💻 Como Rodar Localmente
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+1. Clone o repositório:
+   ```bash
+   git clone https://github.com/appgestaocatequese/catequese.git
+   ```
+
+2. Instale as dependências:
+   ```bash
+   npm install
+   ```
+
+3. Configure as variáveis de ambiente:
+   Crie um arquivo `.env.local` baseado no `.env.example` com suas credenciais do Supabase.
+
+4. Inicie o servidor de desenvolvimento:
+   ```bash
+   npm run dev
+   ```
+
+## 📄 Licença
+
+Este projeto é desenvolvido para fins pastorais e educacionais.
