@@ -307,50 +307,56 @@ export function getCurrentLiturgicalSeason(date: Date = new Date()): LiturgicalS
   const easterTime = easter.getTime();
   
   // Ash Wednesday (46 days before Easter)
-  const ashWednesday = new Date(easter);
-  ashWednesday.setDate(easter.getDate() - 46);
-  const ashTime = ashWednesday.getTime();
+  const ashTime = easterTime - 46 * 86400000;
   
   // Pentecost (50 days after Easter - including Easter)
-  const pentecost = new Date(easter);
-  pentecost.setDate(easter.getDate() + 49);
-  const pentecostTime = pentecost.getTime();
+  const pentecostTime = easterTime + 49 * 86400000;
 
   // Baptism of the Lord (usually Sunday after Jan 6)
-  // For simplicity, let's say Jan 13 approx or calculate specifically
-  // Simple rule: Christmas season ends on the feast of Baptism of the Lord
   const epiphany = new Date(year, 0, 6);
-  const baptism = new Date(epiphany);
-  baptism.setDate(epiphany.getDate() + (7 - epiphany.getDay()) % 7 || 7);
-  const baptismTime = baptism.getTime();
+  const baptismTime = epiphany.getTime() + ((7 - epiphany.getDay()) % 7 || 7) * 86400000;
 
   // Advent start
   const adventStart = getAdventStart(year).getTime();
   const lastYearAdventStart = getAdventStart(year - 1).getTime();
 
-  // 1. NATAL (Dec 25 to Baptism)
-  if (time >= currentChristmas || time < baptismTime) {
+  // 1. NATAL (Dec 25 to Baptism of the Lord)
+  if (time >= currentChristmas && time <= baptismTime) {
+    return { name: 'Tempo do Natal', color: 'white', themeColor: 'bg-white border-gray-200', textColor: 'text-gray-800' };
+  }
+  // Also handle Jan 1 - Baptism (cross-year)
+  if (time < baptismTime && time < ashTime) {
     return { name: 'Tempo do Natal', color: 'white', themeColor: 'bg-white border-gray-200', textColor: 'text-gray-800' };
   }
 
   // 2. ADVENTO (Advent Start to Dec 24)
-  if (time >= adventStart) {
+  if (time >= adventStart && time < currentChristmas) {
     return { name: 'Tempo do Advento', color: 'purple', themeColor: 'bg-purple-700', textColor: 'text-purple-700' };
   }
 
-  // 3. QUARESMA (Ash Wednesday to Holy Thursday)
-  // Holy Thursday is Easter - 3 days
-  const holyThursday = new Date(easter);
-  holyThursday.setDate(easter.getDate() - 3);
-  
-  // Specific day check: Palm Sunday (7 days before Easter)
-  const palmSunday = new Date(easter);
-  palmSunday.setDate(easter.getDate() - 7);
-  if (Math.abs(time - palmSunday.getTime()) < 43200000) { // Within 12h of Palm Sunday
-    return { name: 'Domingo de Ramos', color: 'red', themeColor: 'bg-red-700', textColor: 'text-red-700' };
+  // 3. SEMANA SANTA / QUARESMA
+  // Holy Thursday is Easter - 3 days (end of Lent proper; Triduum begins at evening Mass)
+  const holyThursdayTime = easterTime - 3 * 86400000;
+  const holyThursdayEnd = new Date(holyThursdayTime);
+  holyThursdayEnd.setHours(23, 59, 59, 999);
+
+  // Palm Sunday – 7 days before Easter
+  const palmSundayTime = easterTime - 7 * 86400000;
+  const palmSundayStart = new Date(palmSundayTime);
+  palmSundayStart.setHours(0, 0, 0, 0);
+
+  if (time >= palmSundayStart.getTime() && time <= holyThursdayEnd.getTime()) {
+    return { name: 'Semana Santa', color: 'red', themeColor: 'bg-red-700', textColor: 'text-red-700' };
   }
 
-  if (time >= ashTime && time < holyThursday.getTime()) {
+  // Good Friday & Holy Saturday (Triduum Pascal)
+  const goodFridayTime = easterTime - 2 * 86400000;
+  if (time >= goodFridayTime && time < easterTime) {
+    return { name: 'Tríduo Pascal', color: 'red', themeColor: 'bg-red-800', textColor: 'text-red-800' };
+  }
+
+  // Quaresma (Ash Wednesday to Palm Sunday eve)
+  if (time >= ashTime && time < palmSundayStart.getTime()) {
     return { name: 'Tempo da Quaresma', color: 'purple', themeColor: 'bg-purple-800', textColor: 'text-purple-800' };
   }
   

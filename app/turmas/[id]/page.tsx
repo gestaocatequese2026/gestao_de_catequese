@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { TopBar } from '@/components/top-bar';
 import { BottomNav } from '@/components/bottom-nav';
 import { cn, getClassColor } from '@/lib/utils';
@@ -10,7 +10,7 @@ import {
   Presentation, Edit2, X, Clock, BookOpen, MessageSquare, 
   Heart, Info, ChevronRight, ChevronDown, Save, Library, Play, Pause, RotateCcw, 
   SkipForward, SkipBack, Maximize2,
-  Baby, Camera, Trash2, GripVertical, LayoutGrid, List, MapPin, FileText, Printer
+  Baby, Camera, Trash2, GripVertical, LayoutGrid, List, MapPin, FileText, Printer, Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence, Reorder, useDragControls } from 'motion/react';
 import Image from 'next/image';
@@ -59,6 +59,12 @@ export default function TurmaDetalhes() {
   const [activities, setActivities] = useState<any[]>([]);
   const [catechists, setCatechists] = useState<any[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
+
+  // Photo state
+  const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   // Prepare data for Grade de Frequência
   const frequencyData = React.useMemo(() => {
@@ -561,9 +567,12 @@ export default function TurmaDetalhes() {
     setSelectedCatequizando(catequizando);
     if (catequizando) {
       setSelectedSacraments(catequizando.sacraments || []);
+      setPreviewPhoto(catequizando.avatar || null);
     } else {
       setSelectedSacraments([]);
+      setPreviewPhoto(null);
     }
+    setPhotoFile(null);
     setIsCatequizandoModalOpen(true);
   };
 
@@ -571,6 +580,30 @@ export default function TurmaDetalhes() {
     setIsCatequizandoModalOpen(false);
     setSelectedCatequizando(null);
     setSelectedSacraments([]);
+    setPreviewPhoto(null);
+    setPhotoFile(null);
+  };
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPhotoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setPreviewPhoto(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const uploadPhoto = async (uid: string): Promise<string | null> => {
+    if (!photoFile) return null;
+    const ext = photoFile.name.split('.').pop() || 'jpg';
+    const fileName = `${uid}/${Date.now()}.${ext}`;
+    const { data, error } = await supabase.storage
+      .from('profile-photos')
+      .upload(fileName, photoFile, { contentType: photoFile.type, upsert: true });
+    if (error) { console.error('Upload error:', error); return null; }
+    const { data: { publicUrl } } = supabase.storage.from('profile-photos').getPublicUrl(data.path);
+    return publicUrl;
   };
 
   const handleSaveCatequizando = async () => {
@@ -585,6 +618,13 @@ export default function TurmaDetalhes() {
     const birthDate = birthDateInput?.value || null;
     
     if (!userId) return;
+    setIsUploading(true);
+
+    let photoUrl = selectedCatequizando?.avatar || '';
+    if (photoFile) {
+      const uploaded = await uploadPhoto(userId);
+      if (uploaded) photoUrl = uploaded;
+    }
 
     const catequizandoData = {
       class_id: classId,
@@ -596,7 +636,7 @@ export default function TurmaDetalhes() {
       address: addressInput?.value || '',
       medical_notes: medicalInput?.value || '',
       sacraments: selectedSacraments,
-      photo_url: selectedCatequizando?.avatar || ''
+      photo_url: photoUrl
     };
 
     let result;
@@ -610,6 +650,8 @@ export default function TurmaDetalhes() {
         .from('students')
         .insert([catequizandoData]);
     }
+
+    setIsUploading(false);
 
     if (result.error) {
       console.error('Error saving catequizando:', result.error);
@@ -2261,12 +2303,12 @@ export default function TurmaDetalhes() {
 
               <div className="flex-1 overflow-y-auto p-8 space-y-6">
                 <div className="flex justify-center mb-8">
-                  <div className="relative group">
-                    <div className="w-32 h-32 rounded-full bg-[#f3f3f3] border-4 border-white overflow-hidden flex items-center justify-center relative">
-                      {selectedCatequizando?.avatar ? (
+                  <label className="relative group cursor-pointer block">
+                    <div className="w-32 h-32 rounded-full bg-[#f3f3f3] border-4 border-white overflow-hidden flex items-center justify-center relative shadow-sm">
+                      {previewPhoto ? (
                         <Image 
-                          src={selectedCatequizando.avatar} 
-                          alt={selectedCatequizando.name}
+                          src={previewPhoto} 
+                          alt="Foto do Catequizando"
                           fill
                           className="object-cover"
                           referrerPolicy="no-referrer"
@@ -2274,11 +2316,24 @@ export default function TurmaDetalhes() {
                       ) : (
                         <Camera size={40} className="text-[#c1c7d3]" />
                       )}
+                      
+                      {isUploading && (
+                        <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center">
+                          <Loader2 className="w-8 h-8 text-[#005da7] animate-spin" />
+                        </div>
+                      )}
                     </div>
-                    <button className="absolute bottom-0 right-0 p-2 bg-[#005da7] text-white rounded-full border-2 border-white hover:scale-110 transition-transform">
-                      <Plus size={16} />
-                    </button>
-                  </div>
+                    <div className="absolute bottom-0 right-0 p-2 bg-[#005da7] text-white rounded-full border-2 border-white hover:scale-110 transition-transform">
+                      <Camera size={16} />
+                    </div>
+                    <input 
+                      type="file"
+                      className="hidden"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handlePhotoChange}
+                    />
+                  </label>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
