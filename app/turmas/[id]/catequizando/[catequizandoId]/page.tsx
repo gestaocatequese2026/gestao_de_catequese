@@ -3,11 +3,12 @@
 import React, { useState, useEffect } from 'react';
 import { TopBar } from '@/components/top-bar';
 import { BottomNav } from '@/components/bottom-nav';
-import { Mail, Settings, Edit2, Check, X, Hourglass, Lock, Sparkles, Calendar, Phone, MapPin, Users, Trash2 } from 'lucide-react';
+import { Mail, Settings, Edit2, Check, X, Hourglass, Lock, Sparkles, Calendar, Phone, MapPin, Users, Trash2, Camera, Save, Loader2, CheckCircle, Info, Baby } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Image from 'next/image';
 import { useRouter, useParams } from 'next/navigation';
 import { ConfirmationModal } from '@/components/confirmation-modal';
+import { cn } from '@/lib/utils';
 
 import { createClient } from '@/utils/supabase/client';
 
@@ -21,8 +22,18 @@ export default function CatequizandoPerfil() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [catequizando, setCatequizando] = useState<any>(null);
+  
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
-
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   const calculateAge = (birthDate: string) => {
     if (!birthDate) return '--';
@@ -42,7 +53,9 @@ export default function CatequizandoPerfil() {
     async function loadData() {
       if (!catequizandoId) return;
       
-      // Load student
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user.id) setUserId(session.user.id);
+
       const { data: studentData } = await supabase
         .from('students')
         .select('*')
@@ -50,7 +63,6 @@ export default function CatequizandoPerfil() {
         .single();
       
       if (studentData) {
-        // Load attendance history
         const { data: attendanceData } = await supabase
           .from('attendance')
           .select('*, meetings(*)')
@@ -76,12 +88,85 @@ export default function CatequizandoPerfil() {
           attendance: freq
         });
         setAttendance(history);
+        setPreviewPhoto(studentData.photo_url);
       }
       setLoading(false);
     }
     
     loadData();
   }, [catequizandoId]);
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPhotoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setPreviewPhoto(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const uploadPhoto = async (uid: string): Promise<string | null> => {
+    if (!photoFile) return null;
+    const ext = photoFile.name.split('.').pop() || 'jpg';
+    const fileName = `${uid}/students/${Date.now()}.${ext}`;
+    const { data, error } = await supabase.storage
+      .from('profile-photos')
+      .upload(fileName, photoFile, { contentType: photoFile.type, upsert: true });
+    
+    if (error) {
+      console.error('Upload error:', error);
+      return null;
+    }
+    
+    const { data: { publicUrl } } = supabase.storage.from('profile-photos').getPublicUrl(data.path);
+    return publicUrl;
+  };
+
+  const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!userId || !catequizando) return;
+    setIsUploading(true);
+
+    const formData = new FormData(e.currentTarget);
+    
+    let photoUrl = catequizando.photo_url || null;
+    if (photoFile) {
+      const uploaded = await uploadPhoto(userId);
+      if (uploaded) photoUrl = uploaded;
+    }
+
+    const studentData = {
+      name: formData.get('name') as string,
+      birth_date: formData.get('birthDate') as string || null,
+      parents_name: formData.get('parents') as string,
+      phone: formData.get('phone') as string,
+      address: formData.get('address') as string,
+      photo_url: photoUrl
+    };
+
+    const { error } = await supabase
+      .from('students')
+      .update(studentData)
+      .eq('id', catequizandoId);
+
+    setIsUploading(false);
+    if (!error) {
+      showToast('Perfil atualizado com sucesso!');
+      setIsModalOpen(false);
+      setCatequizando((prev: any) => ({
+        ...prev,
+        ...studentData,
+        age: calculateAge(studentData.birth_date),
+        photo: studentData.photo_url,
+        parents: studentData.parents_name,
+        birthDate: studentData.birth_date,
+      }));
+    } else {
+      console.error('Error updating student:', error);
+      showToast('Erro ao atualizar perfil.', 'error');
+    }
+  };
 
   const handleDelete = () => {
     setIsDeleteModalOpen(true);
@@ -113,7 +198,6 @@ export default function CatequizandoPerfil() {
       <TopBar title="Perfil do Catequizando" showBackButton={true} />
 
       <main className="max-w-[1100px] mx-auto px-6 pt-24 pb-12">
-        {/* Hero Profile Section */}
         <motion.section 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -134,9 +218,12 @@ export default function CatequizandoPerfil() {
                 <Users size={64} />
               )}
             </div>
-            <div className="absolute bottom-2 right-2 bg-[#005da7] text-white p-2 rounded-full cursor-pointer hover:scale-110 transition-transform">
+            <button 
+              onClick={() => setIsModalOpen(true)}
+              className="absolute bottom-2 right-2 bg-[#005da7] text-white p-2 rounded-full cursor-pointer hover:scale-110 transition-transform shadow-lg z-10"
+            >
               <Edit2 size={16} />
-            </div>
+            </button>
           </div>
           <div className="flex-1 space-y-4">
             <div className="space-y-1">
@@ -144,12 +231,11 @@ export default function CatequizandoPerfil() {
               <p className="font-plus-jakarta text-[#414751] font-medium text-lg">{catequizando.age} Anos</p>
             </div>
             <div className="flex flex-wrap gap-3 pt-2">
-              <button className="bg-gradient-to-r from-[#005da7] to-[#2976c7] text-white px-8 py-3 rounded-full font-bold flex items-center gap-2 active:scale-95 duration-200">
-                <Mail size={18} />
-                Mandar Mensagem
-              </button>
-              <button className="border border-[#c1c7d3]/20 text-[#005da7] px-8 py-3 rounded-full font-bold flex items-center gap-2 hover:bg-[#eeeeee] transition-colors active:scale-95 duration-200">
-                <Settings size={18} />
+              <button 
+                onClick={() => setIsModalOpen(true)}
+                className="bg-gradient-to-r from-[#005da7] to-[#2976c7] text-white px-8 py-3 rounded-full font-bold flex items-center gap-2 active:scale-95 duration-200 shadow-md"
+              >
+                <Edit2 size={18} />
                 Editar Perfil
               </button>
               <button 

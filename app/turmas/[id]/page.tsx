@@ -202,7 +202,7 @@ export default function TurmaDetalhes() {
   const [meetingFilter, setMeetingFilter] = useState<string>('Todos');
   const [monthFilter, setMonthFilter] = useState<string>('Todos');
   const [viewModeEncontros, setViewModeEncontros] = useState<'grid' | 'list'>('grid');
-  const [viewModeCatequizandos, setViewModeCatequizandos] = useState<'grid' | 'list'>('grid');
+  const [searchCatequizando, setSearchCatequizando] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const [isPrepModalOpen, setIsPrepModalOpen] = useState(false);
@@ -445,7 +445,7 @@ export default function TurmaDetalhes() {
       participants: activitySelectionMode === 'all' ? 'all' : selectedCatequizandosForActivity,
       objective: activityForm.objective,
       agendas: activityForm.agendas,
-      follow_ups: activityForm.followUps,
+      followUps: activityForm.followUps,
       announcements: activityForm.announcements,
       preparation_plan: activityForm.preparationPlan,
       preparation_details: activityForm.preparationDetails,
@@ -1386,151 +1386,90 @@ export default function TurmaDetalhes() {
                     <Plus size={16} />
                     Novo Catequizando
                   </button>
-                  <div className="relative w-full sm:w-64 group">
-                    <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                      <Search size={16} className="text-[#717783]" />
+                  <div className="flex-1 flex gap-3">
+                    <div className="flex-1 relative">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#717783]" size={18} />
+                      <input 
+                        placeholder="Pesquisar catequizando..."
+                        value={searchCatequizando}
+                        onChange={(e) => setSearchCatequizando(e.target.value)}
+                        className="w-full bg-[#f8f9fa] border border-[#edeeef] rounded-2xl py-3 pl-12 pr-4 text-sm font-medium focus:ring-2 focus:ring-[#007AFF] outline-none transition-all shadow-sm"
+                        type="text"
+                      />
                     </div>
-                    <input 
-                      className="w-full bg-[#f8f9fa] border border-black/15 rounded-full py-2.5 pl-10 pr-4 focus:ring-2 focus:ring-[#007AFF] transition-all placeholder:text-[#c1c7d3] text-[#1a1c1c] text-sm" 
-                      placeholder="Buscar..." 
-                      type="text"
-                    />
-                  </div>
-                  <div className="flex bg-[#f3f3f3] p-1 rounded-xl">
-                    <button
-                      onClick={() => setViewModeCatequizandos('grid')}
-                      className={cn(
-                        "p-2 rounded-lg transition-all",
-                        viewModeCatequizandos === 'grid' ? "bg-white shadow-sm text-[#007AFF]" : "text-[#717783] hover:text-[#1a1c1c]"
-                      )}
-                      title="Visualização em Grade"
-                    >
-                      <LayoutGrid size={18} />
-                    </button>
-                    <button
-                      onClick={() => setViewModeCatequizandos('list')}
-                      className={cn(
-                        "p-2 rounded-lg transition-all",
-                        viewModeCatequizandos === 'list' ? "bg-white shadow-sm text-[#007AFF]" : "text-[#717783] hover:text-[#1a1c1c]"
-                      )}
-                      title="Visualização em Lista"
-                    >
-                      <List size={18} />
-                    </button>
                   </div>
                 </div>
               </div>
-                <div className={cn(
-                "gap-4",
-                viewModeCatequizandos === 'grid' 
-                  ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3" 
-                  : "flex flex-col max-w-4xl mx-auto"
-              )}>
-                {catequizandosList.map((catequizando, index) => (
-                  viewModeCatequizandos === 'grid' ? (
-                    <motion.div 
-                      key={catequizando.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      className="bg-white rounded-3xl p-6 border border-[#edeeef] hover:shadow-xl transition-all group relative overflow-hidden"
-                    >
-                      <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                        <button 
-                          onClick={() => handleOpenCatequizandoModal(catequizando)}
-                          className="p-2 bg-[#f8f9fa] text-[#717783] rounded-full hover:bg-[#007AFF] hover:text-white transition-colors border border-[#edeeef]"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteCatequizando(catequizando.id)}
-                          className="p-2 bg-[#f8f9fa] text-[#717783] rounded-full hover:bg-[#FF3B30] hover:text-white transition-colors border border-[#edeeef]"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                        <ReportButton 
-                          variant="chip"
-                          iconOnly
-                          type="turmas"
-                          reportType="ficha-catequizando"
-                          reportTitle={`Ficha: ${catequizando.name}`}
-                          moduleName="Turmas"
-                          data={catequizando}
-                        />
-                      </div>
-                      
-                      <Link href={`/turmas/${classId}/catequizando/${catequizando.id}`} className="block">
-                        <div className="flex flex-col items-center text-center">
-                          <div className="relative w-24 h-24 mb-4 rounded-full overflow-hidden border-4 border-[#f8f9fa]">
-                            {catequizando.avatar ? (
-                              <Image 
-                                src={catequizando.avatar} 
-                                alt={catequizando.name}
-                                fill
-                                className="object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-full bg-[#f8f9fa] flex items-center justify-center text-[#717783]">
-                                <Baby size={40} />
-                              </div>
-                            )}
+              <div className="flex flex-col max-w-4xl mx-auto space-y-3">
+                {catequizandosList.filter(c => c.name.toLowerCase().includes(searchCatequizando.toLowerCase())).map((catequizando, index) => (
+                  <motion.div 
+                    key={catequizando.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.03 }}
+                    className="bg-white rounded-3xl p-5 border border-[#edeeef] hover:shadow-md transition-all group flex items-center gap-4 relative"
+                  >
+                    <Link href={`/turmas/${classId}/catequizando/${catequizando.id}`} className="flex-1 flex items-center gap-4">
+                      <div className="relative w-16 h-16 rounded-2xl overflow-hidden ring-4 ring-[#f8f9fa] shrink-0">
+                        {catequizando.avatar ? (
+                          <Image src={catequizando.avatar} alt={catequizando.name} fill className="object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-[#f8f9fa] flex items-center justify-center text-[#c1c7d3]">
+                            <Baby size={32} />
                           </div>
-                          <h3 className="font-manrope text-xl font-extrabold text-[#1a1c1c] mb-1 line-clamp-1">{catequizando.name}</h3>
-                          <p className="text-sm text-[#717783] font-medium">{calculateAge(catequizando.birthDate)} Anos • {catequizando.attendance}</p>
-                        </div>
-                      </Link>
-                    </motion.div>
-                  ) : (
-                    <motion.div 
-                      key={catequizando.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.03 }}
-                      className="bg-white rounded-2xl p-4 border border-[#edeeef] hover:shadow-md transition-all group flex items-center gap-4"
-                    >
-                      <Link href={`/turmas/${classId}/catequizando/${catequizando.id}`} className="flex-1 flex items-center gap-4">
-                        <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-[#f8f9fa] shrink-0">
-                          {catequizando.avatar ? (
-                            <Image src={catequizando.avatar} alt={catequizando.name} fill className="object-cover" />
-                          ) : (
-                            <div className="w-full h-full bg-[#f8f9fa] flex items-center justify-center text-[#717783]">
-                              <Baby size={20} />
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-[#1a1c1c] truncate">{catequizando.name}</h3>
-                          <p className="text-xs text-[#717783] font-medium">{calculateAge(catequizando.birthDate)} Anos • {catequizando.attendance} Frequência</p>
-                        </div>
-                      </Link>
-                      
-                      <div className="flex items-center gap-2">
-                        <ReportButton 
-                          variant="chip"
-                          iconOnly
-                          type="turmas"
-                          reportType="ficha-catequizando"
-                          reportTitle={`Ficha: ${catequizando.name}`}
-                          moduleName="Turmas"
-                          data={catequizando}
-                        />
-                        <button 
-                          onClick={() => handleOpenCatequizandoModal(catequizando)}
-                          className="p-2 text-[#717783] hover:bg-[#f8f9fa] rounded-full transition-colors"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteCatequizando(catequizando.id)}
-                          className="p-2 text-[#717783] hover:bg-red-50 hover:text-[#FF3B30] rounded-full transition-colors"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                        <ChevronRight size={20} className="text-[#c1c7d3]" />
+                        )}
                       </div>
-                    </motion.div>
-                  )
+                      <div className="flex-1 min-w-0 pr-10">
+                        <h3 className="font-manrope text-lg font-bold text-[#1a1c1c] truncate">{catequizando.name}</h3>
+                        <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
+                          <span className="text-sm font-medium text-[#717783] flex items-center gap-1">
+                            {calculateAge(catequizando.birthDate)} Anos
+                          </span>
+                          <span className={cn(
+                            "text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full",
+                            parseFloat(catequizando.attendance) >= 75 ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"
+                          )}>
+                            {catequizando.attendance} Frequência
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                    
+                    <div className="flex items-center gap-1">
+                      <ReportButton 
+                        variant="chip"
+                        iconOnly
+                        type="turmas"
+                        reportType="ficha-catequizando"
+                        reportTitle={`Ficha: ${catequizando.name}`}
+                        moduleName="Turmas"
+                        data={catequizando}
+                      />
+                      <button 
+                        onClick={() => handleOpenCatequizandoModal(catequizando)}
+                        className="p-3 text-[#717783] hover:bg-[#f8f9fa] rounded-2xl transition-colors active:scale-95"
+                        title="Editar"
+                      >
+                        <Edit2 size={18} />
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteCatequizando(catequizando.id)}
+                        className="p-3 text-[#717783] hover:bg-red-50 hover:text-[#ba1a1a] rounded-2xl transition-colors active:scale-95"
+                        title="Excluir"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  </motion.div>
                 ))}
+                {catequizandosList.length === 0 && (
+                  <div className="py-20 text-center space-y-4">
+                    <div className="w-20 h-20 bg-[#f8f9fa] rounded-full flex items-center justify-center mx-auto text-[#c1c7d3]">
+                      <Baby size={40} />
+                    </div>
+                    <p className="text-[#717783] font-medium">Nenhum catequizando nesta turma.</p>
+                  </div>
+                )}
               </div>
             </motion.div>
           )}

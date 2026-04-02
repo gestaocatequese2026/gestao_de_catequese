@@ -160,6 +160,7 @@ export default function CadastroCatequistas() {
       setPhotoFile(null);
     } else {
       console.error('Error saving catechist:', result.error);
+      alert('Erro ao salvar catequista: ' + result.error.message);
     }
   };
 
