@@ -201,8 +201,9 @@ export default function CatequizandoPerfil() {
         <motion.section 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col md:flex-row gap-8 mb-16 items-start"
+          className="flex flex-col md:flex-row gap-6 md:gap-8 mb-12 md:mb-16 items-center md:items-start text-center md:text-left"
         >
+
           <div className="relative group">
             <div className="w-32 h-32 md:w-48 md:h-48 rounded-full overflow-hidden bg-[#e8e8e8] ring-4 ring-[#d4e3ff] flex items-center justify-center text-[#c1c7d3]">
               {catequizando.photo ? (
@@ -227,38 +228,42 @@ export default function CatequizandoPerfil() {
           </div>
           <div className="flex-1 space-y-4">
             <div className="space-y-1">
-              <h2 className="font-manrope text-4xl font-extrabold tracking-tight text-[#005da7]">{catequizando.name}</h2>
-              <p className="font-plus-jakarta text-[#414751] font-medium text-lg">{catequizando.age} Anos</p>
+              <h2 className="font-manrope text-3xl md:text-4xl font-extrabold tracking-tight text-[#005da7]">{catequizando.name}</h2>
+              <p className="font-plus-jakarta text-[#414751] font-medium text-base md:text-lg">{catequizando.age} Anos</p>
+
             </div>
-            <div className="flex flex-wrap gap-3 pt-2">
+            <div className="flex flex-wrap gap-3 pt-2 justify-center md:justify-start">
               <button 
                 onClick={() => setIsModalOpen(true)}
-                className="bg-gradient-to-r from-[#005da7] to-[#2976c7] text-white px-8 py-3 rounded-full font-bold flex items-center gap-2 active:scale-95 duration-200 shadow-md"
+                className="bg-gradient-to-r from-[#005da7] to-[#2976c7] text-white px-6 md:px-8 py-2.5 md:py-3 rounded-full font-bold flex items-center gap-2 active:scale-95 duration-200 shadow-md text-sm md:text-base"
               >
                 <Edit2 size={18} />
                 Editar Perfil
               </button>
               <button 
                 onClick={handleDelete}
-                className="border border-[#ffdad6] text-[#ba1a1a] px-8 py-3 rounded-full font-bold flex items-center gap-2 hover:bg-[#ffdad6]/30 transition-colors active:scale-95 duration-200"
+                className="border border-[#ffdad6] text-[#ba1a1a] px-6 md:px-8 py-2.5 md:py-3 rounded-full font-bold flex items-center gap-2 hover:bg-[#ffdad6]/30 transition-colors active:scale-95 duration-200 text-sm md:text-base"
               >
                 <Trash2 size={18} />
-                Excluir Cadastro
+                Excluir
               </button>
             </div>
+
           </div>
         </motion.section>
 
         {/* Bento Layout Information */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+
           {/* Personal Info Card */}
           <div className="md:col-span-2 space-y-8">
             <motion.div 
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.1 }}
-              className="bg-white rounded-xl p-8 border border-[#edeeef]"
+              className="bg-white rounded-xl p-6 md:p-8 border border-[#edeeef]"
             >
+
               <h3 className="font-manrope text-2xl font-bold text-[#005da7] mb-6 flex items-center gap-2">
                 <Users size={24} className="text-[#005da7]" />
                 Informações Familiares
@@ -276,8 +281,9 @@ export default function CatequizandoPerfil() {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
-              className="bg-[#f3f3f3] rounded-xl p-8"
+              className="bg-[#f3f3f3] rounded-xl p-6 md:p-8"
             >
+
               <div className="flex justify-between items-center mb-6">
                 <h3 className="font-manrope text-2xl font-bold text-[#005da7] flex items-center gap-2">
                   <Calendar size={24} />
@@ -302,8 +308,9 @@ export default function CatequizandoPerfil() {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.3 }}
-            className="bg-[#d4e3ff] rounded-xl p-8 flex flex-col relative overflow-hidden"
+            className="bg-[#d4e3ff] rounded-xl p-6 md:p-8 flex flex-col relative overflow-hidden"
           >
+
             <div className="absolute top-0 right-0 p-4 opacity-10">
               <Sparkles size={96} />
             </div>

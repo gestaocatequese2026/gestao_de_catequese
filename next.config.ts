@@ -31,10 +31,11 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'kdlexptrjctkittyisri.supabase.co',
+        hostname: 'brhyzpvbrzwcamqpirlb.supabase.co',
         port: '',
         pathname: '/**',
       },
+
     ],
   },
   transpilePackages: ['motion'],

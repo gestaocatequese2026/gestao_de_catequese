@@ -608,7 +608,8 @@ export default function TurmaDetalhes() {
   const uploadPhoto = async (uid: string): Promise<string | null> => {
     if (!photoFile) return null;
     const ext = photoFile.name.split('.').pop() || 'jpg';
-    const fileName = `${uid}/${Date.now()}.${ext}`;
+    const fileName = `${uid}/students/${Date.now()}.${ext}`;
+
     const { data, error } = await supabase.storage
       .from('profile-photos')
       .upload(fileName, photoFile, { contentType: photoFile.type, upsert: true });
@@ -1404,11 +1405,19 @@ export default function TurmaDetalhes() {
                 {catequizandosList.filter(c => c.name.toLowerCase().includes(searchCatequizando.toLowerCase())).map((catequizando, index) => (
                   <motion.div 
                     key={catequizando.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.03 }}
-                    className="bg-white rounded-3xl p-5 border border-[#edeeef] hover:shadow-md transition-all group flex items-center gap-4 relative"
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05, duration: 0.4, ease: "easeOut" }}
+                    whileHover={{ y: -2, transition: { duration: 0.2 } }}
+                    className={cn(
+                      "rounded-3xl p-5 border transition-all group flex items-center gap-4 relative shadow-sm hover:shadow-md",
+                      index % 4 === 0 ? "bg-blue-50/50 border-blue-100/50" :
+                      index % 4 === 1 ? "bg-rose-50/50 border-rose-100/50" :
+                      index % 4 === 2 ? "bg-emerald-50/50 border-emerald-100/50" :
+                      "bg-amber-50/50 border-amber-100/50"
+                    )}
                   >
+
                     <Link href={`/turmas/${classId}/catequizando/${catequizando.id}`} className="flex-1 flex items-center gap-4">
                       <div className="relative w-16 h-16 rounded-2xl overflow-hidden ring-4 ring-[#f8f9fa] shrink-0">
                         {catequizando.avatar ? (
@@ -1425,12 +1434,10 @@ export default function TurmaDetalhes() {
                           <span className="text-sm font-medium text-[#717783] flex items-center gap-1">
                             {calculateAge(catequizando.birthDate)} Anos
                           </span>
-                          <span className={cn(
-                            "text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full",
-                            parseFloat(catequizando.attendance) >= 75 ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"
-                          )}>
-                            {catequizando.attendance} Frequência
+                          <span className="text-sm font-medium text-[#717783] flex items-center gap-1 bg-white/50 px-2 py-0.5 rounded-full border border-black/5">
+                            {catequizando.birthDate ? new Date(catequizando.birthDate + 'T12:00:00').toLocaleDateString('pt-BR') : 'Sem data'}
                           </span>
+
                         </div>
                       </div>
                     </Link>
