@@ -22,6 +22,8 @@ export default function CatequizandoPerfil() {
   const [loading, setLoading] = useState(true);
   const [catequizando, setCatequizando] = useState<any>(null);
 
+
+
   const calculateAge = (birthDate: string) => {
     if (!birthDate) return '--';
     const today = new Date();
@@ -34,30 +36,51 @@ export default function CatequizandoPerfil() {
     return age;
   };
 
+  const [attendance, setAttendance] = useState<any[]>([]);
+
   useEffect(() => {
-    async function loadCatequizando() {
+    async function loadData() {
       if (!catequizandoId) return;
       
-      const { data, error } = await supabase
+      // Load student
+      const { data: studentData } = await supabase
         .from('students')
         .select('*')
         .eq('id', catequizandoId)
         .single();
       
-      if (data) {
+      if (studentData) {
+        // Load attendance history
+        const { data: attendanceData } = await supabase
+          .from('attendance')
+          .select('*, meetings(*)')
+          .eq('student_id', catequizandoId)
+          .eq('event_type', 'encontro')
+          .order('created_at', { ascending: false });
+
+        const history = (attendanceData || []).map(a => ({
+          date: a.meetings?.date ? new Date(a.meetings.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : '---',
+          status: a.status === 'Presente' ? 'present' : 'absent'
+        })).slice(0, 5);
+
+        const totalEncontros = attendanceData?.length || 0;
+        const presentes = attendanceData?.filter(a => a.status === 'Presente').length || 0;
+        const freq = totalEncontros > 0 ? Math.round((presentes / totalEncontros) * 100) : 0;
+
         setCatequizando({
-          ...data,
-          age: calculateAge(data.birth_date),
-          photo: data.photo_url,
-          parents: data.parents_name,
-          birthDate: data.birth_date,
-          attendance: '100%' // Placeholder
+          ...studentData,
+          age: calculateAge(studentData.birth_date),
+          photo: studentData.photo_url,
+          parents: studentData.parents_name,
+          birthDate: studentData.birth_date,
+          attendance: freq
         });
+        setAttendance(history);
       }
       setLoading(false);
     }
     
-    loadCatequizando();
+    loadData();
   }, [catequizandoId]);
 
   const handleDelete = () => {
@@ -177,11 +200,13 @@ export default function CatequizandoPerfil() {
                 <span className="text-sm font-bold text-[#735c00] bg-[#ffe088] px-3 py-1 rounded-full">{catequizando.attendance}% Frequência</span>
               </div>
               <div className="flex justify-between gap-2 overflow-x-auto pb-2">
-                <PresenceItem date="06 Set" status="present" />
-                <PresenceItem date="13 Set" status="present" />
-                <PresenceItem date="20 Set" status="absent" />
-                <PresenceItem date="27 Set" status="present" />
-                <PresenceItem date="04 Out" status="present" />
+                {attendance.length > 0 ? (
+                  attendance.map((item, i) => (
+                    <PresenceItem key={i} date={item.date} status={item.status} />
+                  ))
+                ) : (
+                  <p className="text-sm text-[#717783] py-4 italic">Nenhum registro de presença encontrado.</p>
+                )}
               </div>
             </motion.div>
           </div>

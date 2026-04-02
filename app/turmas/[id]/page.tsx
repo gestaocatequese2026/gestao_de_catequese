@@ -366,6 +366,13 @@ export default function TurmaDetalhes() {
   const handleSaveAttendance = async () => {
     if (!attendanceEvent || !userId) return;
     
+    // Check if the event ID is valid (not a temp/random ID)
+    if (attendanceEvent.id.length < 20) {
+      setToast({ message: "Salve o registro primeiro antes de fazer a chamada.", type: 'error' });
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
+
     const recordsToSave = Object.entries(currentAttendance).map(([studentId, data]) => ({
       class_id: classId,
       user_id: userId,
@@ -376,28 +383,29 @@ export default function TurmaDetalhes() {
       justification: data.justification || null
     }));
 
-    // Simple strategy: delete existing and insert new
-    const { error: deleteError } = await supabase
-      .from('attendance')
-      .delete()
-      .eq('event_id', attendanceEvent.id)
-      .eq('user_id', userId);
-
-    if (deleteError) {
-      setToast({ message: "Erro ao atualizar presenças.", type: 'error' });
+    if (recordsToSave.length === 0) {
+      setIsAttendanceModalOpen(false);
       return;
     }
 
-    const { error: insertError } = await supabase
-      .from('attendance')
-      .insert(recordsToSave);
+    // Try to save directly with upsert or delete/insert
+    try {
+      const { error: deleteError } = await supabase
+        .from('attendance')
+        .delete()
+        .eq('event_id', attendanceEvent.id)
+        .eq('user_id', userId);
 
-    if (insertError) {
-      setToast({ message: "Erro ao salvar presenças.", type: 'error' });
-    } else {
+      if (deleteError) throw deleteError;
+
+      const { error: insertError } = await supabase
+        .from('attendance')
+        .insert(recordsToSave);
+
+      if (insertError) throw insertError;
+
       setToast({ message: "Presenças salvas com sucesso!", type: 'success' });
       
-      // Update local state
       const { data: updatedData } = await supabase
         .from('attendance')
         .select('*')
@@ -405,6 +413,9 @@ export default function TurmaDetalhes() {
       if (updatedData) setAttendanceRecords(updatedData);
       
       setIsAttendanceModalOpen(false);
+    } catch (err: any) {
+      console.error('Attendance error:', err);
+      setToast({ message: "Erro detalhado: " + (err.message || "Erro desconhecido"), type: 'error' });
     }
     
     setTimeout(() => setToast(null), 3000);
@@ -640,11 +651,14 @@ export default function TurmaDetalhes() {
     };
 
     let result;
-    if (selectedCatequizando?.id) {
+    const studentId = selectedCatequizando?.id;
+    
+    if (studentId) {
+      // Update existing
       result = await supabase
         .from('students')
         .update(catequizandoData)
-        .eq('id', selectedCatequizando.id);
+        .eq('id', studentId);
     } else {
       result = await supabase
         .from('students')
@@ -1410,61 +1424,112 @@ export default function TurmaDetalhes() {
                 "gap-4",
                 viewModeCatequizandos === 'grid' 
                   ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3" 
-                  : "flex flex-col max-w-3xl mx-auto"
+                  : "flex flex-col max-w-4xl mx-auto"
               )}>
                 {catequizandosList.map((catequizando, index) => (
-                  <motion.div 
-                    key={catequizando.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    className="bg-white rounded-3xl p-6 border border-[#f0f0f0] hover:shadow-xl transition-all group relative overflow-hidden"
-                  >
-                    <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                      <button 
-                        onClick={() => handleOpenCatequizandoModal(catequizando)}
-                        className="p-2 bg-[#f0f0f0] text-[#717783] rounded-full hover:bg-[#007AFF] hover:text-white transition-colors"
-                      >
-                        <Edit2 size={16} />
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteCatequizando(catequizando.id)}
-                        className="p-2 bg-[#f0f0f0] text-[#717783] rounded-full hover:bg-[#FF3B30] hover:text-white transition-colors"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                      <ReportButton 
-                        variant="chip"
-                        iconOnly
-                        type="turmas"
-                        reportType="ficha-catequizando"
-                        reportTitle={`Ficha: ${catequizando.name}`}
-                        moduleName="Turmas"
-                        data={catequizando}
-                      />
-                    </div>
-                    
-                    <Link href={`/turmas/${classId}/catequizando/${catequizando.id}`} className="block">
-                      <div className="flex flex-col items-center text-center">
-                        <div className="relative w-24 h-24 mb-4 rounded-full overflow-hidden border-4 border-[#f0f0f0]">
+                  viewModeCatequizandos === 'grid' ? (
+                    <motion.div 
+                      key={catequizando.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      className="bg-white rounded-3xl p-6 border border-[#edeeef] hover:shadow-xl transition-all group relative overflow-hidden"
+                    >
+                      <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                        <button 
+                          onClick={() => handleOpenCatequizandoModal(catequizando)}
+                          className="p-2 bg-[#f8f9fa] text-[#717783] rounded-full hover:bg-[#007AFF] hover:text-white transition-colors border border-[#edeeef]"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteCatequizando(catequizando.id)}
+                          className="p-2 bg-[#f8f9fa] text-[#717783] rounded-full hover:bg-[#FF3B30] hover:text-white transition-colors border border-[#edeeef]"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                        <ReportButton 
+                          variant="chip"
+                          iconOnly
+                          type="turmas"
+                          reportType="ficha-catequizando"
+                          reportTitle={`Ficha: ${catequizando.name}`}
+                          moduleName="Turmas"
+                          data={catequizando}
+                        />
+                      </div>
+                      
+                      <Link href={`/turmas/${classId}/catequizando/${catequizando.id}`} className="block">
+                        <div className="flex flex-col items-center text-center">
+                          <div className="relative w-24 h-24 mb-4 rounded-full overflow-hidden border-4 border-[#f8f9fa]">
+                            {catequizando.avatar ? (
+                              <Image 
+                                src={catequizando.avatar} 
+                                alt={catequizando.name}
+                                fill
+                                className="object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-[#f8f9fa] flex items-center justify-center text-[#717783]">
+                                <Baby size={40} />
+                              </div>
+                            )}
+                          </div>
+                          <h3 className="font-manrope text-xl font-extrabold text-[#1a1c1c] mb-1 line-clamp-1">{catequizando.name}</h3>
+                          <p className="text-sm text-[#717783] font-medium">{calculateAge(catequizando.birthDate)} Anos • {catequizando.attendance}</p>
+                        </div>
+                      </Link>
+                    </motion.div>
+                  ) : (
+                    <motion.div 
+                      key={catequizando.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.03 }}
+                      className="bg-white rounded-2xl p-4 border border-[#edeeef] hover:shadow-md transition-all group flex items-center gap-4"
+                    >
+                      <Link href={`/turmas/${classId}/catequizando/${catequizando.id}`} className="flex-1 flex items-center gap-4">
+                        <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-[#f8f9fa] shrink-0">
                           {catequizando.avatar ? (
-                            <Image 
-                              src={catequizando.avatar} 
-                              alt={catequizando.name}
-                              fill
-                              className="object-cover"
-                            />
+                            <Image src={catequizando.avatar} alt={catequizando.name} fill className="object-cover" />
                           ) : (
-                            <div className="w-full h-full bg-[#f0f0f0] flex items-center justify-center text-[#717783]">
-                              <Baby size={40} />
+                            <div className="w-full h-full bg-[#f8f9fa] flex items-center justify-center text-[#717783]">
+                              <Baby size={20} />
                             </div>
                           )}
                         </div>
-                        <h3 className="font-manrope text-xl font-extrabold text-[#1a1c1c] mb-1 line-clamp-1">{catequizando.name}</h3>
-                        <p className="text-sm text-[#717783] font-medium">{calculateAge(catequizando.birthDate)} Anos</p>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-[#1a1c1c] truncate">{catequizando.name}</h3>
+                          <p className="text-xs text-[#717783] font-medium">{calculateAge(catequizando.birthDate)} Anos • {catequizando.attendance} Frequência</p>
+                        </div>
+                      </Link>
+                      
+                      <div className="flex items-center gap-2">
+                        <ReportButton 
+                          variant="chip"
+                          iconOnly
+                          type="turmas"
+                          reportType="ficha-catequizando"
+                          reportTitle={`Ficha: ${catequizando.name}`}
+                          moduleName="Turmas"
+                          data={catequizando}
+                        />
+                        <button 
+                          onClick={() => handleOpenCatequizandoModal(catequizando)}
+                          className="p-2 text-[#717783] hover:bg-[#f8f9fa] rounded-full transition-colors"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteCatequizando(catequizando.id)}
+                          className="p-2 text-[#717783] hover:bg-red-50 hover:text-[#FF3B30] rounded-full transition-colors"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                        <ChevronRight size={20} className="text-[#c1c7d3]" />
                       </div>
-                    </Link>
-                  </motion.div>
+                    </motion.div>
+                  )
                 ))}
               </div>
             </motion.div>

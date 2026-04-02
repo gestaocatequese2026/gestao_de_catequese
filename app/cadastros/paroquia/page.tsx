@@ -25,7 +25,6 @@ export default function ParoquiaPage() {
 
   const [formData, setFormData] = useState({
     name: '',
-    community: '',
     priest_name: '',
     diocese: '',
     address: '',
@@ -54,7 +53,6 @@ export default function ParoquiaPage() {
           setParishId(data.id);
           setFormData({
             name: data.name || '',
-            community: data.community || '',
             priest_name: data.priest_name || '',
             diocese: data.diocese || '',
             address: data.address || '',
@@ -239,21 +237,7 @@ export default function ParoquiaPage() {
                 </div>
               </div>
 
-              {/* Community Name */}
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-[#717783] ml-1">Comunidade</label>
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-[#c1c7d3] group-focus-within:text-[#005da7] transition-colors">
-                    <MapPin size={20} />
-                  </div>
-                  <input 
-                    value={formData.community}
-                    onChange={e => setFormData({...formData, community: e.target.value})}
-                    placeholder="Ex: Comunidade Nossa Senhora das Graças"
-                    className="w-full bg-[#f8f9fa] border-none rounded-2xl py-4 pl-12 pr-6 focus:ring-2 focus:ring-[#005da7] transition-all text-[#1a1c1c] font-bold placeholder:font-normal"
-                  />
-                </div>
-              </div>
+
 
               {/* Priest Name */}
               <div className="space-y-2">
