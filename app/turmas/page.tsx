@@ -16,15 +16,11 @@ import { useAppStore, ClassItem } from '@/lib/store';
 import { ReportButton } from '@/components/report-button';
 
 export default function Turmas() {
-  const { classes, addClass, updateClass, deleteClass, isLoaded } = useAppStore();
+  const { classes, addClass, updateClass, deleteClass, isLoaded, getStudentsCount } = useAppStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<ClassItem | null>(null);
   const [classToDelete, setClassToDelete] = useState<string | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  
-  // Como simplificamos o projeto, aqui é um contador estático por enquanto
-  // Até criarem a estrutura Supabase de Catequizandos 
-  const getStudentsCount = (id: string) => 0;
 
   const handleOpenModal = (cls: ClassItem | null = null) => {
     setEditingClass(cls);

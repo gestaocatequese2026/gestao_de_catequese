@@ -10,15 +10,16 @@ interface ReportButtonProps {
   moduleName: string;
   reportTitle: string;
   reportSubtitle?: string;
-  data: any[];
-  columns: { key: string; label: string; render?: (val: any) => React.ReactNode }[];
-  type: 'turmas' | 'biblioteca' | 'calendario' | 'mural' | 'geral';
+  data: any | any[];
+  columns?: { key: string; label: string; render?: (val: any) => React.ReactNode }[];
+  type: 'turmas' | 'biblioteca' | 'calendario' | 'mural' | 'geral' | 'catequese';
+  reportType?: 'ficha-encontro' | 'ficha-catequizando' | 'relatorio-mensal' | 'grade-frequencia' | 'tabela-simples';
   variant?: 'chip' | 'button';
   iconOnly?: boolean;
 }
 
 export function ReportButton({ 
-  moduleName, reportTitle, reportSubtitle, data, columns, type, variant = 'chip', iconOnly = false
+  moduleName, reportTitle, reportSubtitle, data, columns = [], type, reportType = 'tabela-simples', variant = 'chip', iconOnly = false
 }: ReportButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -50,15 +51,18 @@ export function ReportButton({
         </button>
       )}
 
-      <ReportModal 
-        isOpen={isOpen}
-        onClose={() => setIsOpen(false)}
-        title={reportTitle}
-        subtitle={reportSubtitle}
-        data={data}
-        type={type}
-        columns={columns}
-      />
+      {isOpen && (
+        <ReportModal 
+          isOpen={isOpen}
+          onClose={() => setIsOpen(false)}
+          title={reportTitle}
+          subtitle={reportSubtitle}
+          data={data}
+          type={type}
+          reportType={reportType}
+          columns={columns}
+        />
+      )}
     </>
   );
 }

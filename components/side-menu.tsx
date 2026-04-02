@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
-import Image from 'next/image';
+import { createClient } from '@/utils/supabase/client';
 
 interface SideMenuProps {
   isOpen: boolean;
@@ -19,18 +19,18 @@ interface SideMenuProps {
 }
 
 const menuItems = [
-  { group: 'Principal', items: [
-    { name: 'Início', icon: Home, href: '/' },
+  { group: 'Cadastros', items: [
+    { name: 'Paróquia', icon: Church, href: '/cadastros/paroquia' },
+    { name: 'Catequistas', icon: GraduationCap, href: '/cadastros/catequistas' },
     { name: 'Turmas', icon: Users, href: '/turmas' },
+  ]},
+  { group: 'Conteúdos e Ferramentas', items: [
+    { name: 'Início', icon: Home, href: '/' },
     { name: 'Biblioteca', icon: Library, href: '/biblioteca' },
     { name: 'Bíblia Online', icon: Book, href: '/biblia' },
     { name: 'Calendário Litúrgico', icon: Calendar, href: '/calendario' },
     { name: 'Jogos e Recreação', icon: Gamepad2, href: '/jogos' },
     { name: 'Mural', icon: ImageIcon, href: '/mural' },
-  ]},
-  { group: 'Cadastros', items: [
-    { name: 'Paróquia', icon: Church, href: '/cadastros/paroquia' },
-    { name: 'Catequistas', icon: GraduationCap, href: '/cadastros/catequistas' },
   ]},
   { group: 'Sistema', items: [
     { name: 'Meu Perfil', icon: User, href: '/perfil' },
@@ -43,9 +43,10 @@ const menuItems = [
 export function SideMenu({ isOpen, onClose }: SideMenuProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const supabase = createClient();
 
-  const handleLogout = () => {
-    localStorage.removeItem('app_currentUser');
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     router.push('/login');
   };
 

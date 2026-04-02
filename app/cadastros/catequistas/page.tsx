@@ -14,42 +14,65 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ConfirmationModal } from '@/components/confirmation-modal';
 
+import { createClient } from '@/utils/supabase/client';
+
 export default function CadastroCatequistas() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [catechistToDelete, setCatechistToDelete] = useState<number | null>(null);
-  const [catechists, setCatechists] = useState<any[]>(() => {
-    if (typeof window !== 'undefined') {
-      const currentUserStr = localStorage.getItem('app_currentUser');
-      const userId = currentUserStr ? JSON.parse(currentUserStr).id : 'default';
-      const stored = localStorage.getItem(`app_catechists_${userId}`);
-      if (stored) {
-        try {
-          return JSON.parse(stored);
-        } catch (e) {
-          console.error(e);
-        }
+  const [catechistToDelete, setCatechistToDelete] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [catechists, setCatechists] = useState<any[]>([]);
+  const [editingCatechist, setEditingCatechist] = useState<any | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  const supabase = createClient();
+
+  useEffect(() => {
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setUserId(session.user.id);
+        fetchCatechists();
       }
     }
-    return [];
-  });
-  const [editingCatechist, setEditingCatechist] = useState<any | null>(null);
+    init();
+  }, []);
 
-  const saveToStorage = (data: any[]) => {
-    setCatechists(data);
-    const currentUserStr = localStorage.getItem('app_currentUser');
-    const userId = currentUserStr ? JSON.parse(currentUserStr).id : 'default';
-    localStorage.setItem(`app_catechists_${userId}`, JSON.stringify(data));
+  const fetchCatechists = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('catechists')
+      .select('*')
+      .order('name', { ascending: true });
+    
+    if (data) {
+      setCatechists(data.map(c => ({
+        id: c.id,
+        name: c.name,
+        email: c.email,
+        phone: c.phone,
+        birthDate: c.birth_date,
+        role: c.role,
+        address: c.address,
+        observations: c.observations,
+        status: c.status,
+        photo: c.photo_url || 'https://lh3.googleusercontent.com/a/ACg8ocL_X_X_X_X_X_X_X_X_X_X_X_X_X_X_X_X_X_X=s96-c'
+      })));
+    }
+    setLoading(false);
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = (id: string) => {
     setCatechistToDelete(id);
     setIsDeleteModalOpen(true);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (catechistToDelete) {
-      saveToStorage(catechists.filter(c => c.id !== catechistToDelete));
+      const { error } = await supabase.from('catechists').delete().eq('id', catechistToDelete);
+      if (!error) {
+        setCatechists(prev => prev.filter(c => c.id !== catechistToDelete));
+      }
       setCatechistToDelete(null);
     }
     setIsDeleteModalOpen(false);
@@ -67,30 +90,43 @@ export default function CadastroCatequistas() {
     return age;
   };
 
-  const handleSave = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!userId) return;
+
     const formData = new FormData(e.currentTarget);
-    const newCatechist = {
-      id: editingCatechist ? editingCatechist.id : Date.now(),
-      name: formData.get('name'),
-      email: formData.get('email'),
-      phone: formData.get('phone'),
-      birthDate: formData.get('birthDate'),
-      role: formData.get('role'),
-      address: formData.get('address'),
-      observations: formData.get('observations'),
+    const catechistData = {
+      user_id: userId,
+      name: formData.get('name') as string,
+      email: formData.get('email') as string,
+      phone: formData.get('phone') as string,
+      birth_date: formData.get('birthDate') as string || null,
+      role: formData.get('role') as string,
+      address: formData.get('address') as string,
+      observations: formData.get('observations') as string,
       status: 'Ativo',
-      photo: 'https://lh3.googleusercontent.com/a/ACg8ocL_X_X_X_X_X_X_X_X_X_X_X_X_X_X_X_X_X_X=s96-c' // Placeholder
+      photo_url: editingCatechist?.photo || ''
     };
 
+    let result;
     if (editingCatechist) {
-      saveToStorage(catechists.map(c => c.id === editingCatechist.id ? newCatechist : c));
+      result = await supabase
+        .from('catechists')
+        .update(catechistData)
+        .eq('id', editingCatechist.id);
     } else {
-      saveToStorage([...catechists, newCatechist]);
+      result = await supabase
+        .from('catechists')
+        .insert([catechistData]);
     }
-    
-    setIsModalOpen(false);
-    setEditingCatechist(null);
+
+    if (!result.error) {
+      fetchCatechists();
+      setIsModalOpen(false);
+      setEditingCatechist(null);
+    } else {
+      console.error('Error saving catechist:', result.error);
+    }
   };
 
   const openEditModal = (cat: any) => {

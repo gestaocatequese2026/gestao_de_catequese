@@ -21,6 +21,7 @@ import { useParams } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { ReportButton } from '@/components/report-button';
 import { NotificationBell } from '@/components/notification-bell';
+import { createClient } from '@/utils/supabase/client';
 
 // Mock Data removed
 
@@ -49,78 +50,145 @@ interface Meeting {
 export default function TurmaDetalhes() {
   const params = useParams();
   const classId = params?.id as string;
-  const { classes, isLoaded } = useAppStore();
+  const { classes, isLoaded, userId, refreshData } = useAppStore();
   const currentClass = classes.find((c: any) => c.id === classId);
+  const supabase = createClient();
 
-  const [meetings, setMeetings] = useState<Meeting[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(`meetings_${classId}`);
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          return [];
-        }
-      }
-    }
-    return [];
-  });
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [catequizandosList, setCatequizandosList] = useState<any[]>([]);
+  const [activities, setActivities] = useState<any[]>([]);
+  const [catechists, setCatechists] = useState<any[]>([]);
+  const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
 
+  // Prepare data for Grade de Frequência
+  const frequencyData = React.useMemo(() => {
+    if (!meetings.length || !catequizandosList.length) return { dates: [], students: [] };
+    
+    const dates = [...new Set(meetings.map(m => m.data))].sort();
+    const studentsWithAttendance = catequizandosList.map(student => {
+      const attendanceMap: Record<string, string> = {};
+      attendanceRecords
+        .filter(record => record.student_id === student.id)
+        .forEach(record => {
+          const meeting = meetings.find(m => m.id === record.event_id);
+          if (meeting) {
+            attendanceMap[meeting.data] = record.status;
+          }
+        });
+      
+      return {
+        ...student,
+        attendance: attendanceMap
+      };
+    });
+
+    return { dates, students: studentsWithAttendance };
+  }, [meetings, catequizandosList, attendanceRecords]);
+
+  // Load data from Supabase
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(`meetings_${classId}`, JSON.stringify(meetings));
-    }
-  }, [meetings, classId]);
-  
-  const [studentsList, setStudentsList] = useState<any[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(`studentsList_${classId}`);
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          return [];
+    if (isLoaded && userId && classId) {
+      const loadClassData = async () => {
+        // Fetch Meetings
+        const { data: meetingsData } = await supabase
+          .from('meetings')
+          .select('*')
+          .eq('class_id', classId)
+          .order('date', { ascending: true });
+        
+        if (meetingsData) {
+          setMeetings(meetingsData.map(m => ({
+            id: m.id,
+            tema: m.title,
+            data: m.date,
+            leituraBiblica: m.biblical_reading,
+            materialApoio: m.support_material,
+            status: m.status,
+            image: m.image_url,
+            roteiro: m.roteiro || []
+          })));
         }
-      }
-    }
-    return [];
-  });
-  
-  const [catechists, setCatechists] = useState<any[]>(() => {
-    if (typeof window !== 'undefined') {
-      const currentUserStr = localStorage.getItem('app_currentUser');
-      const userId = currentUserStr ? JSON.parse(currentUserStr).id : 'default';
-      const saved = localStorage.getItem(`app_catechists_${userId}`);
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          return [];
-        }
-      }
-    }
-    return [];
-  });
 
-  const [activities, setActivities] = useState<any[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(`activities_${classId}`);
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          return [];
+        // Fetch Students
+        const { data: studentsData } = await supabase
+          .from('students')
+          .select('*')
+          .eq('class_id', classId)
+          .order('name', { ascending: true });
+        
+        if (studentsData) {
+          setCatequizandosList(studentsData.map(s => ({
+            id: s.id,
+            name: s.name,
+            birthDate: s.birth_date,
+            parents: s.parents_name,
+            phone: s.phone,
+            address: s.address,
+            medicalNotes: s.medical_notes,
+            avatar: s.photo_url,
+            sacraments: s.sacraments || [],
+            attendance: '100%', // Placeholder, implement logic if needed
+            present: true
+          })));
         }
-      }
-    }
-    return [];
-  });
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(`activities_${classId}`, JSON.stringify(activities));
+        // Fetch Activities
+        const { data: activitiesData } = await supabase
+          .from('activities')
+          .select('*')
+          .eq('class_id', classId)
+          .order('date', { ascending: true });
+        
+        if (activitiesData) {
+          setActivities(activitiesData.map(a => ({
+            id: a.id,
+            name: a.name,
+            description: a.description,
+            type: a.type,
+            date: a.date,
+            time: a.time,
+            location: a.location,
+            nature: a.nature,
+            conductionType: a.conduction_type,
+            requireDeclaration: a.require_declaration,
+            observation: a.observation,
+            status: a.status,
+            participants: a.participants,
+            objective: a.objective,
+            agendas: a.agendas,
+            followUps: a.follow_ups,
+            announcements: a.announcements,
+            preparationPlan: a.preparation_plan,
+            preparationDetails: a.preparation_details || {}
+          })));
+        }
+
+        // Fetch Catechists
+        const { data: catechistsData } = await supabase
+          .from('catechists')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('status', 'Ativo')
+          .order('name', { ascending: true });
+        
+        if (catechistsData) {
+          setCatechists(catechistsData);
+        }
+
+        // Fetch Attendance
+        const { data: attendanceData } = await supabase
+          .from('attendance')
+          .select('*')
+          .eq('class_id', classId);
+        
+        if (attendanceData) {
+          setAttendanceRecords(attendanceData);
+        }
+      };
+
+      loadClassData();
     }
-  }, [activities, classId]);
+  }, [isLoaded, userId, classId]);
 
   const [planoFilter, setPlanoFilter] = useState<'all' | 'semester1' | 'semester2' | 'cycle'>('all');
   const [planoMonthFilter, setPlanoMonthFilter] = useState<string>('all');
@@ -131,10 +199,12 @@ export default function TurmaDetalhes() {
   const [viewModeCatequizandos, setViewModeCatequizandos] = useState<'grid' | 'list'>('grid');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
+  const [isPrepModalOpen, setIsPrepModalOpen] = useState(false);
+  const [selectedActivityForPrep, setSelectedActivityForPrep] = useState<any>(null);
   const [isExternalActivity, setIsExternalActivity] = useState(false);
-  const [isStudentModalOpen, setIsStudentModalOpen] = useState(false);
+  const [isCatequizandoModalOpen, setIsCatequizandoModalOpen] = useState(false);
+  const [selectedCatequizando, setSelectedCatequizando] = useState<any>(null);
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
-  const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isActivityEditing, setIsActivityEditing] = useState(false);
   const [isPresenting, setIsPresenting] = useState(false);
@@ -147,7 +217,7 @@ export default function TurmaDetalhes() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteConfig, setDeleteConfig] = useState<{
     id: string | number;
-    type: 'meeting' | 'student' | 'activity';
+    type: 'meeting' | 'catequizando' | 'activity';
     title: string;
     message: string;
   } | null>(null);
@@ -156,7 +226,7 @@ export default function TurmaDetalhes() {
   const [templateSearch, setTemplateSearch] = useState('');
   const [selectedSacraments, setSelectedSacraments] = useState<string[]>([]);
   const [activitySelectionMode, setActivitySelectionMode] = useState<'all' | 'specific'>('all');
-  const [selectedStudentsForActivity, setSelectedStudentsForActivity] = useState<number[]>([]);
+  const [selectedCatequizandosForActivity, setSelectedCatequizandosForActivity] = useState<number[]>([]);
 
   const [transferModalOpen, setTransferModalOpen] = useState(false);
   const [meetingToTransfer, setMeetingToTransfer] = useState<Meeting | null>(null);
@@ -165,6 +235,9 @@ export default function TurmaDetalhes() {
 
   const [isDeclarationModalOpen, setIsDeclarationModalOpen] = useState(false);
   const [selectedActivityForDeclaration, setSelectedActivityForDeclaration] = useState<any>(null);
+  const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
+  const [attendanceEvent, setAttendanceEvent] = useState<{ id: string, name: string, type: 'encontro' | 'atividade' } | null>(null);
+  const [currentAttendance, setCurrentAttendance] = useState<Record<string, { status: 'Presente' | 'Faltante', justification?: string }>>({});
 
   const handleGenerateDeclaration = (activity: any) => {
     setSelectedActivityForDeclaration(activity);
@@ -187,7 +260,18 @@ export default function TurmaDetalhes() {
     conductionType: 'Ônibus Fretado',
     requireDeclaration: true,
     observation: '',
-    status: 'Planejado' as MeetingStatus
+    status: 'Planejado' as MeetingStatus,
+    objective: '',
+    agendas: '',
+    followUps: '',
+    announcements: '',
+    preparationPlan: '',
+    preparationDetails: {
+      date: '',
+      time: '',
+      location: '',
+      requirements: ''
+    }
   });
 
   const handleOpenActivityModal = (activity: any = null, edit = false) => {
@@ -204,11 +288,22 @@ export default function TurmaDetalhes() {
         conductionType: activity.conductionType || 'Ônibus Fretado',
         requireDeclaration: activity.requireDeclaration,
         observation: activity.observation || '',
-        status: activity.status || 'Planejado'
+        status: activity.status || 'Planejado',
+        objective: activity.objective || '',
+        agendas: activity.agendas || '',
+        followUps: activity.followUps || '',
+        announcements: activity.announcements || '',
+        preparationPlan: activity.preparationPlan || '',
+        preparationDetails: activity.preparationDetails || {
+          date: '',
+          time: '',
+          location: '',
+          requirements: ''
+        }
       });
       setIsExternalActivity(activity.nature === 'Externa');
       setActivitySelectionMode(activity.participants === 'all' ? 'all' : 'specific');
-      setSelectedStudentsForActivity(activity.participants === 'all' ? [] : activity.participants);
+      setSelectedCatequizandosForActivity(activity.participants === 'all' ? [] : activity.participants);
     } else {
       setActivityForm({
         id: '',
@@ -222,40 +317,170 @@ export default function TurmaDetalhes() {
         conductionType: 'Ônibus Fretado',
         requireDeclaration: true,
         observation: '',
-        status: 'Planejado'
+        status: 'Planejado',
+        objective: '',
+        agendas: '',
+        followUps: '',
+        announcements: '',
+        preparationPlan: '',
+        preparationDetails: {
+          date: '',
+          time: '',
+          location: '',
+          requirements: ''
+        }
       });
       setIsExternalActivity(false);
       setActivitySelectionMode('all');
-      setSelectedStudentsForActivity([]);
+      setSelectedCatequizandosForActivity([]);
     }
     setIsActivityEditing(edit);
     setIsActivityModalOpen(true);
   };
 
-  const handleSaveActivity = () => {
-    if (!activityForm.name || !activityForm.date) {
+  const handleOpenAttendanceModal = (event: any, type: 'encontro' | 'atividade') => {
+    setAttendanceEvent({ id: event.id, name: event.tema || event.name, type });
+    
+    // Pre-fill with existing records or default to Presente
+    const records = attendanceRecords.filter(r => r.event_id === event.id);
+    const initialPresence: Record<string, any> = {};
+    
+    catequizandosList.forEach(s => {
+      const record = records.find(r => r.student_id === s.id);
+      initialPresence[s.id] = {
+        status: record ? record.status : 'Presente',
+        justification: record ? record.justification : ''
+      };
+    });
+    
+    setCurrentAttendance(initialPresence);
+    setIsAttendanceModalOpen(true);
+  };
+
+  const handleSaveAttendance = async () => {
+    if (!attendanceEvent || !userId) return;
+    
+    const recordsToSave = Object.entries(currentAttendance).map(([studentId, data]) => ({
+      class_id: classId,
+      user_id: userId,
+      event_id: attendanceEvent.id,
+      event_type: attendanceEvent.type,
+      student_id: studentId,
+      status: data.status,
+      justification: data.justification || null
+    }));
+
+    // Simple strategy: delete existing and insert new
+    const { error: deleteError } = await supabase
+      .from('attendance')
+      .delete()
+      .eq('event_id', attendanceEvent.id)
+      .eq('user_id', userId);
+
+    if (deleteError) {
+      setToast({ message: "Erro ao atualizar presenças.", type: 'error' });
+      return;
+    }
+
+    const { error: insertError } = await supabase
+      .from('attendance')
+      .insert(recordsToSave);
+
+    if (insertError) {
+      setToast({ message: "Erro ao salvar presenças.", type: 'error' });
+    } else {
+      setToast({ message: "Presenças salvas com sucesso!", type: 'success' });
+      
+      // Update local state
+      const { data: updatedData } = await supabase
+        .from('attendance')
+        .select('*')
+        .eq('class_id', classId);
+      if (updatedData) setAttendanceRecords(updatedData);
+      
+      setIsAttendanceModalOpen(false);
+    }
+    
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleSaveActivity = async () => {
+    if (!activityForm.name || !activityForm.date || !userId) {
       setToast({ message: 'Preencha o nome e a data da atividade.', type: 'error' });
       setTimeout(() => setToast(null), 3000);
       return;
     }
 
     const activityData = {
-      ...activityForm,
-      participants: activitySelectionMode === 'all' ? 'all' : selectedStudentsForActivity,
+      class_id: classId,
+      user_id: userId,
+      name: activityForm.name,
+      description: activityForm.description,
+      type: activityForm.type,
+      date: activityForm.date,
+      time: activityForm.time,
+      location: activityForm.location,
+      nature: activityForm.nature,
+      conduction_type: activityForm.conductionType,
+      require_declaration: activityForm.requireDeclaration,
+      observation: activityForm.observation,
+      status: activityForm.status,
+      participants: activitySelectionMode === 'all' ? 'all' : selectedCatequizandosForActivity,
+      objective: activityForm.objective,
+      agendas: activityForm.agendas,
+      follow_ups: activityForm.followUps,
+      announcements: activityForm.announcements,
+      preparation_plan: activityForm.preparationPlan,
+      preparation_details: activityForm.preparationDetails,
     };
 
-    if (activityForm.id) {
+    let result;
+    if (activityForm.id && !activityForm.id.startsWith('temp_')) {
       // Edit existing activity
-      setActivities(activities.map(a => a.id === activityForm.id ? activityData : a));
-      setToast({ message: 'Atividade atualizada com sucesso!', type: 'success' });
+      result = await supabase
+        .from('activities')
+        .update(activityData)
+        .eq('id', activityForm.id);
     } else {
       // Create new activity
-      const newActivity = {
-        ...activityData,
-        id: Date.now().toString(),
-      };
-      setActivities([...activities, newActivity]);
+      result = await supabase
+        .from('activities')
+        .insert([activityData]);
+    }
+
+    if (result.error) {
+      console.error('Error saving activity:', result.error);
+      setToast({ message: 'Erro ao salvar atividade.', type: 'error' });
+    } else {
       setToast({ message: 'Atividade salva com sucesso!', type: 'success' });
+      // Refresh list
+      const { data } = await supabase.from('activities').select('*').eq('class_id', classId).order('date', { ascending: true });
+      if (data) setActivities(data.map(a => ({
+        id: a.id,
+        name: a.name,
+        description: a.description,
+        type: a.type,
+        date: a.date,
+        time: a.time,
+        location: a.location,
+        nature: a.nature,
+        conductionType: a.conduction_type,
+        requireDeclaration: a.require_declaration,
+        observation: a.observation,
+        status: a.status,
+        participants: a.participants,
+        objective: a.objective,
+        agendas: a.agendas,
+        followUps: a.follow_ups,
+        announcements: a.announcements,
+        preparationPlan: a.preparation_plan,
+        preparationDetails: a.preparation_details || {
+          date: '',
+          time: '',
+          location: '',
+          requirements: ''
+        }
+      })));
     }
 
     setIsActivityModalOpen(false);
@@ -271,12 +496,52 @@ export default function TurmaDetalhes() {
       conductionType: 'Ônibus Fretado',
       requireDeclaration: true,
       observation: '',
-      status: 'Planejado'
+      status: 'Planejado',
+      objective: '',
+      agendas: '',
+      followUps: '',
+      announcements: '',
+      preparationPlan: '',
+      preparationDetails: {
+        date: '',
+        time: '',
+        location: '',
+        requirements: ''
+      }
     });
     setActivitySelectionMode('all');
-    setSelectedStudentsForActivity([]);
+    setSelectedCatequizandosForActivity([]);
     setIsExternalActivity(false);
     
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleSavePreparation = async () => {
+    if (!selectedActivityForPrep || !userId) return;
+
+    const prepDetails = {
+      date: (document.getElementById('prep-date') as HTMLInputElement)?.value,
+      time: (document.getElementById('prep-time') as HTMLInputElement)?.value,
+      location: (document.getElementById('prep-location') as HTMLInputElement)?.value,
+      requirements: (document.getElementById('prep-requirements') as HTMLTextAreaElement)?.value,
+    };
+
+    const { error } = await supabase
+      .from('activities')
+      .update({ preparation_details: prepDetails })
+      .eq('id', selectedActivityForPrep.id);
+
+    if (error) {
+      console.error('Error saving preparation:', error);
+      setToast({ message: 'Erro ao salvar planejamento.', type: 'error' });
+    } else {
+      setToast({ message: 'Planejamento salvo com sucesso!', type: 'success' });
+      // Update local state
+      setActivities(activities.map(a => 
+        a.id === selectedActivityForPrep.id ? { ...a, preparationDetails: prepDetails } : a
+      ));
+      setIsPrepModalOpen(false);
+    }
     setTimeout(() => setToast(null), 3000);
   };
 
@@ -292,14 +557,83 @@ export default function TurmaDetalhes() {
     return age;
   };
 
-  const handleOpenStudentModal = (student: any = null) => {
-    setSelectedStudent(student);
-    setIsStudentModalOpen(true);
+  const handleOpenCatequizandoModal = (catequizando: any = null) => {
+    setSelectedCatequizando(catequizando);
+    if (catequizando) {
+      setSelectedSacraments(catequizando.sacraments || []);
+    } else {
+      setSelectedSacraments([]);
+    }
+    setIsCatequizandoModalOpen(true);
   };
 
-  const handleCloseStudentModal = () => {
-    setIsStudentModalOpen(false);
-    setSelectedStudent(null);
+  const handleCloseCatequizandoModal = () => {
+    setIsCatequizandoModalOpen(false);
+    setSelectedCatequizando(null);
+    setSelectedSacraments([]);
+  };
+
+  const handleSaveCatequizando = async () => {
+    const nameInput = document.getElementById('catequizando-name') as HTMLInputElement;
+    const birthDateInput = document.getElementById('catequizando-birthdate') as HTMLInputElement;
+    const parentsInput = document.getElementById('catequizando-parents') as HTMLInputElement;
+    const phoneInput = document.getElementById('catequizando-phone') as HTMLInputElement;
+    const addressInput = document.getElementById('catequizando-address') as HTMLInputElement;
+    const medicalInput = document.getElementById('catequizando-medical') as HTMLTextAreaElement;
+    
+    const name = nameInput?.value || 'Novo Catequizando';
+    const birthDate = birthDateInput?.value || null;
+    
+    if (!userId) return;
+
+    const catequizandoData = {
+      class_id: classId,
+      user_id: userId,
+      name,
+      birth_date: birthDate,
+      parents_name: parentsInput?.value || '',
+      phone: phoneInput?.value || '',
+      address: addressInput?.value || '',
+      medical_notes: medicalInput?.value || '',
+      sacraments: selectedSacraments,
+      photo_url: selectedCatequizando?.avatar || ''
+    };
+
+    let result;
+    if (selectedCatequizando?.id) {
+      result = await supabase
+        .from('students')
+        .update(catequizandoData)
+        .eq('id', selectedCatequizando.id);
+    } else {
+      result = await supabase
+        .from('students')
+        .insert([catequizandoData]);
+    }
+
+    if (result.error) {
+      console.error('Error saving catequizando:', result.error);
+      showToast('Erro ao salvar catequizando.', 'error');
+    } else {
+      showToast(selectedCatequizando ? 'Perfil atualizado!' : 'Catequizando cadastrado!');
+      // Refresh students
+      const { data } = await supabase.from('students').select('*').eq('class_id', classId).order('name', { ascending: true });
+      if (data) setCatequizandosList(data.map(s => ({
+        id: s.id,
+        name: s.name,
+        birthDate: s.birth_date,
+        parents: s.parents_name,
+        phone: s.phone,
+        address: s.address,
+        medicalNotes: s.medical_notes,
+        avatar: s.photo_url,
+        sacraments: s.sacraments || [],
+        attendance: '100%',
+        present: true
+      })));
+      refreshData(); // Updates global counter
+    }
+    handleCloseCatequizandoModal();
   };
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
@@ -358,7 +692,7 @@ export default function TurmaDetalhes() {
     setIsDeleteModalOpen(true);
   };
 
-  const handleStatusChange = (meetingId: string, newStatus: MeetingStatus) => {
+  const handleStatusChange = async (meetingId: string, newStatus: MeetingStatus) => {
     if (newStatus === 'Transferido') {
       const meeting = meetings.find(m => m.id === meetingId);
       if (meeting) {
@@ -370,12 +704,22 @@ export default function TurmaDetalhes() {
       return;
     }
 
-    const updatedMeetings = meetings.map(m => m.id === meetingId ? { ...m, status: newStatus } : m);
-    setMeetings(updatedMeetings);
-    if (selectedMeeting?.id === meetingId) {
-      setSelectedMeeting(prev => prev ? { ...prev, status: newStatus } : null);
+    const { error } = await supabase
+      .from('meetings')
+      .update({ status: newStatus })
+      .eq('id', meetingId);
+
+    if (error) {
+      console.error('Error updating status:', error);
+      showToast('Erro ao atualizar status.', 'error');
+    } else {
+      const updatedMeetings = meetings.map(m => m.id === meetingId ? { ...m, status: newStatus } : m);
+      setMeetings(updatedMeetings);
+      if (selectedMeeting?.id === meetingId) {
+        setSelectedMeeting(prev => prev ? { ...prev, status: newStatus } : null);
+      }
+      showToast(`Status alterado para ${newStatus}`);
     }
-    showToast(`Status alterado para ${newStatus}`);
   };
 
   const handleTransferDateChange = (date: string) => {
@@ -384,60 +728,63 @@ export default function TurmaDetalhes() {
     setConflictMeeting(existing || null);
   };
 
-  const confirmTransfer = (action: 'cancel' | 'reschedule' | 'normal' = 'normal') => {
+  const confirmTransfer = async (action: 'cancel' | 'reschedule' | 'normal' = 'normal') => {
     if (!meetingToTransfer) return;
 
-    let updatedMeetings = [...meetings];
+    let success = false;
 
     if (action === 'cancel' && conflictMeeting) {
-      updatedMeetings = updatedMeetings.map(m => {
-        if (m.id === meetingToTransfer.id) {
-          return { ...m, data: transferDate, status: 'Transferido' as MeetingStatus };
-        }
-        if (m.id === conflictMeeting.id) {
-          return { ...m, status: 'Cancelado' as MeetingStatus };
-        }
-        return m;
-      });
-      showToast('Encontro transferido e encontro conflitante cancelado!');
+      const { error: err1 } = await supabase.from('meetings').update({ data: transferDate, status: 'Transferido' }).eq('id', meetingToTransfer.id);
+      const { error: err2 } = await supabase.from('meetings').update({ status: 'Cancelado' }).eq('id', conflictMeeting.id);
+      if (!err1 && !err2) {
+        showToast('Encontro transferido e encontro conflitante cancelado!');
+        success = true;
+      }
     } else if (action === 'reschedule' && conflictMeeting) {
-      // Find next available date on the same day of the week
       const conflictDateObj = new Date(conflictMeeting.data + 'T12:00:00');
       const nextDateObj = new Date(conflictDateObj);
       nextDateObj.setDate(nextDateObj.getDate() + 7);
       let nextDateStr = nextDateObj.toISOString().split('T')[0];
       
-      // Keep adding 7 days until we find an empty slot
-      while (updatedMeetings.some(m => m.data === nextDateStr && m.id !== conflictMeeting.id && m.id !== meetingToTransfer.id)) {
+      while (meetings.some(m => m.data === nextDateStr && m.id !== conflictMeeting.id && m.id !== meetingToTransfer.id)) {
         nextDateObj.setDate(nextDateObj.getDate() + 7);
         nextDateStr = nextDateObj.toISOString().split('T')[0];
       }
 
-      updatedMeetings = updatedMeetings.map(m => {
-        if (m.id === meetingToTransfer.id) {
-          return { ...m, data: transferDate, status: 'Transferido' as MeetingStatus };
-        }
-        if (m.id === conflictMeeting.id) {
-          return { ...m, data: nextDateStr, status: 'Transferido' as MeetingStatus };
-        }
-        return m;
-      });
-      showToast('Encontro transferido e encontro conflitante remanejado!');
+      const { error: err1 } = await supabase.from('meetings').update({ data: transferDate, status: 'Transferido' }).eq('id', meetingToTransfer.id);
+      const { error: err2 } = await supabase.from('meetings').update({ data: nextDateStr, status: 'Transferido' }).eq('id', conflictMeeting.id);
+      if (!err1 && !err2) {
+        showToast('Encontro transferido e encontro conflitante remanejado!');
+        success = true;
+      }
     } else {
-      // Just change date
-      updatedMeetings = updatedMeetings.map(m => {
-        if (m.id === meetingToTransfer.id) {
-          return { ...m, data: transferDate, status: 'Transferido' as MeetingStatus };
-        }
-        return m;
-      });
-      showToast('Encontro transferido com sucesso!');
+      const { error } = await supabase.from('meetings').update({ data: transferDate, status: 'Transferido' }).eq('id', meetingToTransfer.id);
+      if (!error) {
+        showToast('Encontro transferido com sucesso!');
+        success = true;
+      }
     }
 
-    setMeetings(updatedMeetings);
-    if (selectedMeeting && (selectedMeeting.id === meetingToTransfer.id || selectedMeeting.id === conflictMeeting?.id)) {
-      const updatedSelected = updatedMeetings.find(m => m.id === selectedMeeting.id);
-      setSelectedMeeting(updatedSelected || null);
+    if (success) {
+      // Refresh meetings
+      const { data } = await supabase.from('meetings').select('*').eq('class_id', classId).order('date', { ascending: true });
+      if (data) {
+        const mapped = data.map(m => ({
+          id: m.id,
+          tema: m.title,
+          data: m.date,
+          leituraBiblica: m.biblical_reading,
+          materialApoio: m.support_material,
+          status: m.status,
+          image: m.image_url,
+          roteiro: m.roteiro || []
+        }));
+        setMeetings(mapped);
+        if (selectedMeeting) {
+          const updatedSelected = mapped.find(m => m.id === selectedMeeting.id);
+          setSelectedMeeting(updatedSelected || null);
+        }
+      }
     }
     
     setTransferModalOpen(false);
@@ -445,20 +792,22 @@ export default function TurmaDetalhes() {
     setConflictMeeting(null);
   };
 
-  const handleSaveMeeting = (e: React.FormEvent) => {
+  const handleSaveMeeting = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedMeeting) return;
+    if (!selectedMeeting || !userId) return;
 
     const form = e.target as HTMLFormElement;
     const formData = new FormData(form);
 
-    const updatedMeeting: Meeting = {
-      ...selectedMeeting,
-      tema: formData.get('tema') as string,
-      data: formData.get('data') as string,
-      leituraBiblica: formData.get('leituraBiblica') as string,
-      materialApoio: formData.get('materialApoio') as string,
+    const meetingData = {
+      class_id: classId,
+      user_id: userId,
+      title: formData.get('tema') as string,
+      date: formData.get('data') as string,
+      biblical_reading: formData.get('leituraBiblica') as string,
+      support_material: formData.get('materialApoio') as string,
       status: selectedMeeting.status || 'Planejado',
+      image_url: selectedMeeting.image || '',
       roteiro: selectedMeeting.roteiro.map(step => {
         const customLabel = formData.get(`roteiro-${step.id}-label`) as string;
         return {
@@ -472,12 +821,36 @@ export default function TurmaDetalhes() {
       })
     };
 
-    if (meetings.find(m => m.id === updatedMeeting.id)) {
-      setMeetings(meetings.map(m => m.id === updatedMeeting.id ? updatedMeeting : m));
-      showToast('Encontro atualizado com sucesso!');
+    let result;
+    if (selectedMeeting.id && !selectedMeeting.id.startsWith('temp_') && selectedMeeting.id.length > 20) {
+      // Logic for real UUID IDs
+      result = await supabase
+        .from('meetings')
+        .update(meetingData)
+        .eq('id', selectedMeeting.id);
     } else {
-      setMeetings([...meetings, updatedMeeting]);
-      showToast('Novo encontro criado com sucesso!');
+      result = await supabase
+        .from('meetings')
+        .insert([meetingData]);
+    }
+
+    if (result.error) {
+      console.error('Error saving meeting:', result.error);
+      showToast('Erro ao salvar encontro.', 'error');
+    } else {
+      showToast(selectedMeeting.id && selectedMeeting.id.length > 20 ? 'Encontro atualizado com sucesso!' : 'Novo encontro criado com sucesso!');
+      // Refresh meetings
+      const { data } = await supabase.from('meetings').select('*').eq('class_id', classId).order('date', { ascending: true });
+      if (data) setMeetings(data.map(m => ({
+        id: m.id,
+        tema: m.title,
+        data: m.date,
+        leituraBiblica: m.biblical_reading,
+        materialApoio: m.support_material,
+        status: m.status,
+        image: m.image_url,
+        roteiro: m.roteiro || []
+      })));
     }
 
     handleCloseModal();
@@ -516,30 +889,45 @@ export default function TurmaDetalhes() {
     setIsDeleteModalOpen(true);
   };
 
-  const handleDeleteStudent = (id: number) => {
+  const handleDeleteCatequizando = (id: number) => {
     setDeleteConfig({
       id,
-      type: 'student',
+      type: 'catequizando',
       title: 'Excluir Catequizando',
       message: 'Tem certeza que deseja excluir este catequizando? Esta ação não pode ser desfeita.'
     });
     setIsDeleteModalOpen(true);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteConfig) return;
 
-    if (deleteConfig.type === 'meeting') {
-      setMeetings(meetings.filter(m => m.id !== deleteConfig.id));
-      showToast('Encontro excluído.');
-      handleCloseModal();
-    } else if (deleteConfig.type === 'student') {
-      setStudentsList(studentsList.filter(s => s.id !== deleteConfig.id));
-      showToast('Catequizando excluído!');
-      handleCloseStudentModal();
-    } else if (deleteConfig.type === 'activity') {
-      setActivities(activities.filter(a => a.id !== deleteConfig.id));
-      showToast('Atividade excluída com sucesso!');
+    let table = '';
+    if (deleteConfig.type === 'meeting') table = 'meetings';
+    else if (deleteConfig.type === 'catequizando') table = 'students';
+    else if (deleteConfig.type === 'activity') table = 'activities';
+
+    if (table) {
+      const { error } = await supabase.from(table).delete().eq('id', deleteConfig.id);
+      
+      if (error) {
+        console.error(`Error deleting from ${table}:`, error);
+        showToast('Erro ao excluir registro.', 'error');
+      } else {
+        if (deleteConfig.type === 'meeting') {
+          setMeetings(meetings.filter(m => m.id !== deleteConfig.id));
+          showToast('Encontro excluído.');
+          handleCloseModal();
+        } else if (deleteConfig.type === 'catequizando') {
+          setCatequizandosList(catequizandosList.filter(s => s.id !== deleteConfig.id));
+          showToast('Catequizando excluído!');
+          handleCloseCatequizandoModal();
+          refreshData();
+        } else if (deleteConfig.type === 'activity') {
+          setActivities(activities.filter(a => a.id !== deleteConfig.id));
+          showToast('Atividade excluída com sucesso!');
+        }
+      }
     }
     
     setIsDeleteModalOpen(false);
@@ -680,7 +1068,7 @@ export default function TurmaDetalhes() {
                 reportTitle={`Lista de Catequizandos - ${currentClass.name}`}
                 reportSubtitle={`Turma: ${currentClass.level} | ${currentClass.schedule}`}
                 type="turmas"
-                data={studentsList}
+                data={catequizandosList}
                 columns={[
                   { key: 'name', label: 'Nome Completo' },
                   { key: 'birthDate', label: 'Idade', render: (val) => val ? `${calculateAge(val)} anos` : '-' },
@@ -759,7 +1147,7 @@ export default function TurmaDetalhes() {
                   <div>
                     <p className="text-sm font-bold text-[#717783] uppercase tracking-wider">Catequizandos</p>
                     <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-black text-[#1a1c1c]">{studentsList.length}</span>
+                      <span className="text-2xl font-black text-[#1a1c1c]">{catequizandosList.length}</span>
                       <span className="text-xs font-bold text-[#717783]">matriculados</span>
                     </div>
                   </div>
@@ -807,6 +1195,49 @@ export default function TurmaDetalhes() {
                   <Plus size={16} />
                   Novo Encontro
                 </button>
+
+                <div className="flex items-center gap-3 mb-6 print:hidden">
+                  <ReportButton 
+                    variant="button"
+                    type="turmas"
+                    reportType="grade-frequencia"
+                    reportTitle="Grade de Frequência"
+                    reportSubtitle={`Turma: ${currentClass?.name || ''}`}
+                    moduleName="Turmas"
+                    data={frequencyData}
+                  />
+                  <ReportButton 
+                    variant="button"
+                    type="turmas"
+                    reportType="relatorio-mensal"
+                    reportTitle="Relatório Mensal"
+                    reportSubtitle={`Turma: ${currentClass?.name || ''} - ${monthFilter}`}
+                    moduleName="Turmas"
+                    data={(() => {
+                      const filteredMeetings = meetings.filter(m => monthFilter === 'Todos' || new Date(m.data + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'long' }).toLowerCase() === monthFilter.toLowerCase());
+                      const totalPresence = attendanceRecords.filter(r => filteredMeetings.some(m => m.id === r.event_id) && r.status === 'Presente').length;
+                      const totalPossible = filteredMeetings.length * catequizandosList.length;
+                      
+                      return { 
+                        month: monthFilter, 
+                        class: currentClass, 
+                        meetings: filteredMeetings,
+                        students: catequizandosList,
+                        events: filteredMeetings.map(m => ({
+                          date: m.data,
+                          title: m.tema,
+                          presenceCount: attendanceRecords.filter(r => r.event_id === m.id && r.status === 'Presente').length,
+                          summary: m.leituraBiblica
+                        })),
+                        stats: {
+                          totalEvents: filteredMeetings.length,
+                          averageAttendance: totalPossible > 0 ? Math.round((totalPresence / totalPossible) * 100) : 0,
+                          justifiedAbsences: attendanceRecords.filter(r => filteredMeetings.some(m => m.id === r.event_id) && r.status === 'Faltante' && r.justification).length
+                        }
+                      };
+                    })()}
+                  />
+                </div>
 
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4 w-full mb-4">
                   <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -871,6 +1302,7 @@ export default function TurmaDetalhes() {
                     meeting={meeting} 
                     onView={() => handleOpenModal(meeting)}
                     onPresent={() => startPresentation(meeting)}
+                    onAttendance={() => handleOpenAttendanceModal(meeting, 'encontro')}
                     onDelete={() => handleDeleteMeeting(meeting.id)}
                     onStatusChange={(status) => handleStatusChange(meeting.id, status)}
                     viewMode={viewModeEncontros}
@@ -892,7 +1324,7 @@ export default function TurmaDetalhes() {
                 <p className="text-sm text-[#717783] mb-6">Gerencie a frequência e acompanhe a jornada espiritual.</p>
                 <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto items-center justify-center mb-4">
                   <button 
-                    onClick={() => handleOpenStudentModal()}
+                    onClick={() => handleOpenCatequizandoModal()}
                     className="bg-[#007AFF] text-white px-6 py-2.5 rounded-full font-bold text-sm flex items-center justify-center gap-2 hover:bg-[#0056b3] transition-colors shadow-sm w-full sm:w-auto"
                   >
                     <Plus size={16} />
@@ -932,105 +1364,64 @@ export default function TurmaDetalhes() {
                   </div>
                 </div>
               </div>
-
-              <div className={cn(
+                <div className={cn(
                 "gap-4",
                 viewModeCatequizandos === 'grid' 
                   ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3" 
                   : "flex flex-col max-w-3xl mx-auto"
               )}>
-                {studentsList.map((student, index) => (
+                {catequizandosList.map((catequizando, index) => (
                   <motion.div 
-                    key={student.id}
+                    key={catequizando.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.05 }}
-                    className={cn(
-                      "bg-white rounded-xl p-6 border-2 flex items-center justify-between group cursor-pointer transition-all relative shadow-sm hover:shadow-md",
-                      viewModeCatequizandos === 'list' ? "flex-row border-[#005da7]/20 hover:border-[#005da7]/50" : "flex-col md:flex-row border-black/15 hover:border-[#005da7]/30"
-                    )}
+                    className="bg-white rounded-3xl p-6 border border-[#f0f0f0] hover:shadow-xl transition-all group relative overflow-hidden"
                   >
-                    <div className="absolute top-3 right-3 flex gap-3 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10">
+                    <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                       <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenStudentModal(student);
-                        }}
-                        className="p-2 bg-[#f3f3f3] md:bg-transparent hover:bg-[#e2e8f0] rounded-full text-[#005da7] transition-all shadow-sm md:shadow-none"
-                        title="Editar"
+                        onClick={() => handleOpenCatequizandoModal(catequizando)}
+                        className="p-2 bg-[#f0f0f0] text-[#717783] rounded-full hover:bg-[#007AFF] hover:text-white transition-colors"
                       >
                         <Edit2 size={16} />
                       </button>
                       <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteStudent(student.id);
-                        }}
-                        className="p-2 bg-[#f3f3f3] md:bg-transparent hover:bg-[#fee2e2] rounded-full text-red-500 transition-all shadow-sm md:shadow-none"
-                        title="Excluir"
+                        onClick={() => handleDeleteCatequizando(catequizando.id)}
+                        className="p-2 bg-[#f0f0f0] text-[#717783] rounded-full hover:bg-[#FF3B30] hover:text-white transition-colors"
                       >
                         <Trash2 size={16} />
                       </button>
+                      <ReportButton 
+                        variant="chip"
+                        iconOnly
+                        type="turmas"
+                        reportType="ficha-catequizando"
+                        reportTitle={`Ficha: ${catequizando.name}`}
+                        moduleName="Turmas"
+                        data={catequizando}
+                      />
                     </div>
-                    <div className={cn("flex items-center gap-4 flex-1 overflow-hidden w-full", viewModeCatequizandos === 'grid' ? "flex-col text-center" : "")}>
-                      <div className="relative flex-shrink-0">
-                        <div className={cn("rounded-full bg-[#eeeeee] overflow-hidden", viewModeCatequizandos === 'grid' ? "w-20 h-20" : "w-12 h-12")}>
-                          {student.avatar ? (
+                    
+                    <Link href={`/turmas/${classId}/catequizando/${catequizando.id}`} className="block">
+                      <div className="flex flex-col items-center text-center">
+                        <div className="relative w-24 h-24 mb-4 rounded-full overflow-hidden border-4 border-[#f0f0f0]">
+                          {catequizando.avatar ? (
                             <Image 
-                              src={student.avatar} 
-                              alt={student.name} 
-                              width={80} 
-                              height={80} 
-                              className="object-cover w-full h-full"
-                              referrerPolicy="no-referrer"
+                              src={catequizando.avatar} 
+                              alt={catequizando.name}
+                              fill
+                              className="object-cover"
                             />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-[#005da7] text-white font-bold text-xl">
-                              {student.name.charAt(0).toUpperCase()}
+                            <div className="w-full h-full bg-[#f0f0f0] flex items-center justify-center text-[#717783]">
+                              <Baby size={40} />
                             </div>
                           )}
                         </div>
-                        {student.present && (
-                          <div className={cn("absolute bg-[#005da7] rounded-full border-2 border-white flex items-center justify-center", viewModeCatequizandos === 'grid' ? "bottom-0 right-0 w-6 h-6" : "-bottom-1 -right-1 w-4 h-4")}>
-                            <CheckCircle size={viewModeCatequizandos === 'grid' ? 14 : 10} className="text-white fill-current" />
-                          </div>
-                        )}
+                        <h3 className="font-manrope text-xl font-extrabold text-[#1a1c1c] mb-1 line-clamp-1">{catequizando.name}</h3>
+                        <p className="text-sm text-[#717783] font-medium">{calculateAge(catequizando.birthDate)} Anos</p>
                       </div>
-                      <div className={cn("overflow-hidden flex-1 flex", viewModeCatequizandos === 'list' ? "flex-col md:flex-row md:items-center justify-between gap-4" : "flex-col items-center")}>
-                        <div>
-                          <p className={cn("font-manrope font-bold text-[#1a1c1c] leading-tight truncate", viewModeCatequizandos === 'grid' ? "text-lg mt-2" : "text-lg")}>{student.name}</p>
-                          <div className={cn("flex items-center gap-2 mt-2", viewModeCatequizandos === 'grid' ? "justify-center" : "")}>
-                            <Link href={`/turmas/${classId}/catequizando/${student.id}`} className="text-xs font-black text-[#005da7] uppercase tracking-widest hover:underline bg-[#005da7]/10 px-3 py-1 rounded-full">
-                              Ver Ficha
-                            </Link>
-                          </div>
-                        </div>
-                        
-                        {viewModeCatequizandos === 'list' && student.birthDate && (
-                          <div className="flex items-center gap-4 bg-[#f8f9fa] px-4 py-2 rounded-lg border border-black/15 flex-shrink-0">
-                            <div className="flex flex-col">
-                              <span className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Nascimento</span>
-                              <span className="text-sm font-bold text-[#1a1c1c]">
-                                {new Date(student.birthDate + 'T12:00:00').toLocaleDateString('pt-BR')}
-                              </span>
-                            </div>
-                            <div className="w-px h-8 bg-[#edeeef]"></div>
-                            <div className="flex flex-col">
-                              <span className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Idade</span>
-                              <span className="text-sm font-bold text-[#005da7]">{calculateAge(student.birthDate)} anos</span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    {viewModeCatequizandos === 'list' && (
-                      <div className={cn(
-                        "w-8 h-8 rounded-full flex items-center justify-center transition-colors flex-shrink-0 ml-4",
-                        student.present ? "bg-[#005da7]/10 text-[#005da7]" : "border-2 border-[#c1c7d3]/30 text-[#c1c7d3]"
-                      )}>
-                        {student.present ? <CheckCircle size={20} className="fill-current" /> : <Circle size={20} />}
-                      </div>
-                    )}
+                    </Link>
                   </motion.div>
                 ))}
               </div>
@@ -1204,6 +1595,9 @@ export default function TurmaDetalhes() {
                             )}>
                               {activity.nature}
                             </span>
+                            <span className="text-[10px] font-black uppercase tracking-widest bg-[#f0f0f0] text-[#717783] px-2 py-0.5 rounded-md">
+                              {activity.type}
+                            </span>
                             {activity.nature === 'Externa' && activity.requireDeclaration && (
                               <span className="text-[10px] font-black uppercase tracking-widest bg-[#fff8e6] text-[#735c00] px-2 py-0.5 rounded-md">
                                 Requer Autorização
@@ -1235,6 +1629,27 @@ export default function TurmaDetalhes() {
                           className="flex-1 sm:flex-none px-4 py-2 bg-[#f3f3f3] text-[#414751] font-bold rounded-xl hover:bg-[#e8e8e8] transition-colors text-sm"
                         >
                           Editar
+                        </button>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenAttendanceModal(activity, 'atividade');
+                          }}
+                          className="flex-1 sm:flex-none px-4 py-2 bg-[#34C759] text-white font-bold rounded-xl hover:bg-[#2eb350] transition-colors text-sm flex items-center justify-center gap-2"
+                        >
+                          <UserCheck size={16} />
+                          Chamada
+                        </button>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedActivityForPrep(activity);
+                            setIsPrepModalOpen(true);
+                          }}
+                          className="flex-1 sm:flex-none px-4 py-2 bg-[#007AFF] text-white font-bold rounded-xl hover:bg-[#0056b3] transition-colors text-sm flex items-center justify-center gap-2"
+                        >
+                          <Activity size={16} />
+                          Planejar Preparação
                         </button>
                         {activity.nature === 'Externa' && activity.requireDeclaration && (
                           <button 
@@ -1813,15 +2228,15 @@ export default function TurmaDetalhes() {
         )}
       </AnimatePresence>
 
-      {/* Modal for Student Registration */}
+      {/* Modal for Catequizando Registration */}
       <AnimatePresence>
-        {isStudentModalOpen && (
+        {isCatequizandoModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={handleCloseStudentModal}
+              onClick={handleCloseCatequizandoModal}
               className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             />
             <motion.div 
@@ -1836,10 +2251,10 @@ export default function TurmaDetalhes() {
                     <Baby size={20} />
                   </div>
                   <h2 className="text-xl font-extrabold text-[#001e40] font-manrope">
-                    {selectedStudent ? 'Editar Perfil' : 'Novo Catequizando'}
+                    {selectedCatequizando ? 'Editar Perfil' : 'Novo Catequizando'}
                   </h2>
                 </div>
-                <button onClick={handleCloseStudentModal} className="p-2 text-[#414751] hover:bg-[#f3f3f3] rounded-full transition-colors">
+                <button onClick={handleCloseCatequizandoModal} className="p-2 text-[#414751] hover:bg-[#f3f3f3] rounded-full transition-colors">
                   <X size={24} />
                 </button>
               </div>
@@ -1848,10 +2263,10 @@ export default function TurmaDetalhes() {
                 <div className="flex justify-center mb-8">
                   <div className="relative group">
                     <div className="w-32 h-32 rounded-full bg-[#f3f3f3] border-4 border-white overflow-hidden flex items-center justify-center relative">
-                      {selectedStudent?.avatar ? (
+                      {selectedCatequizando?.avatar ? (
                         <Image 
-                          src={selectedStudent.avatar} 
-                          alt={selectedStudent.name}
+                          src={selectedCatequizando.avatar} 
+                          alt={selectedCatequizando.name}
                           fill
                           className="object-cover"
                           referrerPolicy="no-referrer"
@@ -1870,8 +2285,8 @@ export default function TurmaDetalhes() {
                   <div className="space-y-2 md:col-span-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Nome Completo</label>
                     <input 
-                      id="student-name"
-                      defaultValue={selectedStudent?.name}
+                      id="catequizando-name"
+                      defaultValue={selectedCatequizando?.name}
                       className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#005da7] transition-all" 
                       placeholder="Nome do catequizando" 
                     />
@@ -1880,11 +2295,11 @@ export default function TurmaDetalhes() {
                     <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Data de Nascimento</label>
                     <input 
                       type="date"
-                      id="student-birthdate"
-                      defaultValue={selectedStudent?.birthDate}
+                      id="catequizando-birthdate"
+                      defaultValue={selectedCatequizando?.birthDate}
                       onChange={(e) => {
                         const age = calculateAge(e.target.value);
-                        const ageInput = document.getElementById('student-age') as HTMLInputElement;
+                        const ageInput = document.getElementById('catequizando-age') as HTMLInputElement;
                         if (ageInput) ageInput.value = age.toString();
                       }}
                       className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#005da7] transition-all" 
@@ -1893,24 +2308,24 @@ export default function TurmaDetalhes() {
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Idade (Automático)</label>
                     <input 
-                      id="student-age"
+                      id="catequizando-age"
                       readOnly
-                      defaultValue={selectedStudent?.birthDate ? calculateAge(selectedStudent.birthDate) : ''}
+                      defaultValue={selectedCatequizando?.birthDate ? calculateAge(selectedCatequizando.birthDate) : ''}
                       className="w-full bg-[#eeeeee] border-none rounded-xl py-4 px-4 text-[#717783] font-bold" 
                       placeholder="0" 
                     />
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Nome do Responsável</label>
-                    <input className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#005da7] transition-all" placeholder="Pai, Mãe ou Tutor" />
+                    <input id="catequizando-parents" className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#005da7] transition-all" placeholder="Pai, Mãe ou Tutor" defaultValue={selectedCatequizando?.parents} />
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Telefone de Contato</label>
-                    <input className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#005da7] transition-all" placeholder="(00) 00000-0000" />
+                    <input id="catequizando-phone" className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#005da7] transition-all" placeholder="(00) 00000-0000" defaultValue={selectedCatequizando?.phone} />
                   </div>
                   <div className="space-y-2 md:col-span-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Endereço</label>
-                    <input className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#005da7] transition-all" placeholder="Rua, número, bairro..." />
+                    <input id="catequizando-address" className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#005da7] transition-all" placeholder="Rua, número, bairro..." defaultValue={selectedCatequizando?.address} />
                   </div>
                 </div>
 
@@ -1958,14 +2373,14 @@ export default function TurmaDetalhes() {
 
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Observações Médicas / Alergias</label>
-                  <textarea className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#005da7] transition-all h-24 resize-none" placeholder="Informações importantes sobre a saúde do catequizando" />
+                  <textarea id="catequizando-medical" className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#005da7] transition-all h-24 resize-none" placeholder="Informações importantes sobre a saúde do catequizando" defaultValue={selectedCatequizando?.medicalNotes} />
                 </div>
 
                 <div className="pt-6 mt-8 border-t border-[#edeeef] flex justify-between items-center">
                   <div>
-                    {selectedStudent && (
+                    {selectedCatequizando && (
                       <button 
-                        onClick={() => handleDeleteStudent(selectedStudent.id)}
+                        onClick={() => handleDeleteCatequizando(selectedCatequizando.id)}
                         className="flex items-center gap-2 px-4 py-2 text-[#ba1a1a] font-bold hover:bg-[#ffdad6]/30 rounded-xl transition-all"
                       >
                         <Trash2 size={18} />
@@ -1974,33 +2389,11 @@ export default function TurmaDetalhes() {
                     )}
                   </div>
                   <div className="flex gap-4">
-                    {!selectedStudent && (
-                      <button onClick={handleCloseStudentModal} className="px-6 py-3 text-[#414751] font-bold hover:bg-[#f3f3f3] rounded-xl transition-all">Cancelar</button>
+                    {!selectedCatequizando && (
+                      <button onClick={handleCloseCatequizandoModal} className="px-6 py-3 text-[#414751] font-bold hover:bg-[#f3f3f3] rounded-xl transition-all">Cancelar</button>
                     )}
                     <button 
-                      onClick={() => {
-                        const nameInput = document.getElementById('student-name') as HTMLInputElement;
-                        const birthDateInput = document.getElementById('student-birthdate') as HTMLInputElement;
-                        const name = nameInput?.value || 'Novo Catequizando';
-                        const birthDate = birthDateInput?.value || '';
-                        
-                        if (selectedStudent) {
-                          setStudentsList(studentsList.map(s => s.id === selectedStudent.id ? { ...s, name, birthDate } : s));
-                          showToast('Perfil atualizado!');
-                        } else {
-                          const newId = studentsList.length > 0 ? Math.max(...studentsList.map(s => s.id)) + 1 : 1;
-                          setStudentsList([...studentsList, {
-                            id: newId,
-                            name,
-                            birthDate,
-                            attendance: '100%',
-                            present: true,
-                            avatar: ''
-                          }]);
-                          showToast('Catequizando cadastrado!');
-                        }
-                        handleCloseStudentModal();
-                      }}
+                      onClick={handleSaveCatequizando}
                       className="px-8 py-3 bg-[#005da7] text-white font-bold rounded-xl hover:opacity-90 transition-all flex items-center gap-2"
                     >
                       <Save size={20} />
@@ -2060,24 +2453,6 @@ export default function TurmaDetalhes() {
               <div className="flex-1 overflow-y-auto p-8 space-y-8 no-scrollbar">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2 md:col-span-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Nome da Atividade / Evento</label>
-                    <input 
-                      className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#005da7] transition-all" 
-                      placeholder="Ex: Gincana Bíblica" 
-                      value={activityForm.name}
-                      onChange={(e) => setActivityForm({...activityForm, name: e.target.value})}
-                    />
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Descrição</label>
-                    <textarea 
-                      className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#005da7] transition-all h-24 resize-none" 
-                      placeholder="Breve descrição do que será realizado..." 
-                      value={activityForm.description}
-                      onChange={(e) => setActivityForm({...activityForm, description: e.target.value})}
-                    />
-                  </div>
-                  <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Tipo</label>
                     <select 
                       className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#005da7] transition-all"
@@ -2091,52 +2466,147 @@ export default function TurmaDetalhes() {
                       <option>Jornada</option>
                       <option>Passeios</option>
                       <option>Retiro</option>
+                      <option>Reunião com os pais</option>
+                      <option>Reunião com os catequistas</option>
                       <option>Outros</option>
                     </select>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Data</label>
-                    <input 
-                      type="date" 
-                      className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#005da7] transition-all" 
-                      value={activityForm.date}
-                      onChange={(e) => setActivityForm({...activityForm, date: e.target.value})}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Horário</label>
-                    <input 
-                      type="time" 
-                      className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#005da7] transition-all" 
-                      value={activityForm.time}
-                      onChange={(e) => setActivityForm({...activityForm, time: e.target.value})}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Local</label>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">
+                      {(activityForm.type === 'Reunião com os pais' || activityForm.type === 'Reunião com os catequistas') ? 'Tema da Reunião' : 'Nome da Atividade / Evento'}
+                    </label>
                     <input 
                       className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#005da7] transition-all" 
-                      placeholder="Ex: Salão Paroquial" 
-                      value={activityForm.location}
-                      onChange={(e) => setActivityForm({...activityForm, location: e.target.value})}
+                      placeholder="Ex: Gincana Bíblica" 
+                      value={activityForm.name}
+                      onChange={(e) => setActivityForm({...activityForm, name: e.target.value})}
                     />
                   </div>
-                  
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Natureza da Atividade</label>
-                    <select 
-                      className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#005da7] transition-all"
-                      onChange={(e) => {
-                        setIsExternalActivity(e.target.value === 'Externa');
-                        setActivityForm({...activityForm, nature: e.target.value});
-                      }}
-                      value={isExternalActivity ? 'Externa' : 'Interna'}
-                    >
-                      <option value="Interna">Interna (na Paróquia)</option>
-                      <option value="Externa">Externa (fora da Paróquia)</option>
-                    </select>
-                  </div>
+
+                  {(activityForm.type === 'Reunião com os pais' || activityForm.type === 'Reunião com os catequistas') ? (
+                    <>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Data da Reunião</label>
+                        <input 
+                          type="date" 
+                          className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#005da7] transition-all" 
+                          value={activityForm.date}
+                          onChange={(e) => setActivityForm({...activityForm, date: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Horário</label>
+                        <input 
+                          type="time" 
+                          className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#005da7] transition-all" 
+                          value={activityForm.time}
+                          onChange={(e) => setActivityForm({...activityForm, time: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Local</label>
+                        <input 
+                          className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#005da7] transition-all" 
+                          placeholder="Ex: Salão Paroquial" 
+                          value={activityForm.location}
+                          onChange={(e) => setActivityForm({...activityForm, location: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Objetivo</label>
+                        <textarea 
+                          className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#005da7] transition-all h-20 resize-none" 
+                          placeholder="Qual o objetivo desta reunião?" 
+                          value={activityForm.objective}
+                          onChange={(e) => setActivityForm({...activityForm, objective: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Pautas</label>
+                        <textarea 
+                          className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#005da7] transition-all h-32 resize-none" 
+                          placeholder="Liste os assuntos a serem discutidos..." 
+                          value={activityForm.agendas}
+                          onChange={(e) => setActivityForm({...activityForm, agendas: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Encaminhamentos</label>
+                        <textarea 
+                          className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#005da7] transition-all h-24 resize-none" 
+                          placeholder="Decisões e ações a serem tomadas..." 
+                          value={activityForm.followUps}
+                          onChange={(e) => setActivityForm({...activityForm, followUps: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Avisos</label>
+                        <textarea 
+                          className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#005da7] transition-all h-24 resize-none" 
+                          placeholder="Avisos gerais para os participantes..." 
+                          value={activityForm.announcements}
+                          onChange={(e) => setActivityForm({...activityForm, announcements: e.target.value})}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="space-y-2 md:col-span-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Descrição</label>
+                        <textarea 
+                          className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#005da7] transition-all h-24 resize-none" 
+                          placeholder="Breve descrição do que será realizado..." 
+                          value={activityForm.description}
+                          onChange={(e) => setActivityForm({...activityForm, description: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Data</label>
+                        <input 
+                          type="date" 
+                          className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#005da7] transition-all" 
+                          value={activityForm.date}
+                          onChange={(e) => setActivityForm({...activityForm, date: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Horário</label>
+                        <input 
+                          type="time" 
+                          className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#005da7] transition-all" 
+                          value={activityForm.time}
+                          onChange={(e) => setActivityForm({...activityForm, time: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Local</label>
+                        <input 
+                          className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#005da7] transition-all" 
+                          placeholder="Ex: Salão Paroquial" 
+                          value={activityForm.location}
+                          onChange={(e) => setActivityForm({...activityForm, location: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Natureza da Atividade</label>
+                        <select 
+                          className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#005da7] transition-all"
+                          onChange={(e) => {
+                            setIsExternalActivity(e.target.value === 'Externa');
+                            setActivityForm({...activityForm, nature: e.target.value});
+                          }}
+                          value={isExternalActivity ? 'Externa' : 'Interna'}
+                        >
+                          <option value="Interna">Interna (na Paróquia)</option>
+                          <option value="Externa">Externa (fora da Paróquia)</option>
+                        </select>
+                      </div>
+                    </>
+                  )}
                 </div>
+
+                {/* Plano de Preparação removido daqui e movido para modal próprio */}
 
                 {isExternalActivity && (
                   <div className="space-y-6 p-6 bg-[#fff8e6] border border-[#ffe088] rounded-2xl">
@@ -2222,44 +2692,44 @@ export default function TurmaDetalhes() {
                       animate={{ opacity: 1, y: 0 }}
                       className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2"
                     >
-                      {studentsList.map((student) => (
+                      {catequizandosList.map((catequizando) => (
                         <label 
-                          key={student.id} 
+                          key={catequizando.id} 
                           className={cn(
                             "flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all",
-                            selectedStudentsForActivity.includes(student.id)
+                            selectedCatequizandosForActivity.includes(catequizando.id)
                               ? "bg-[#005da7]/5 border-[#005da7]"
                               : "bg-white border-[#edeeef] hover:bg-[#f9f9f9]"
                           )}
                         >
                           <input 
                             type="checkbox"
-                            checked={selectedStudentsForActivity.includes(student.id)}
+                            checked={selectedCatequizandosForActivity.includes(catequizando.id)}
                             onChange={(e) => {
                               if (e.target.checked) {
-                                setSelectedStudentsForActivity([...selectedStudentsForActivity, student.id]);
+                                setSelectedCatequizandosForActivity([...selectedCatequizandosForActivity, catequizando.id]);
                               } else {
-                                setSelectedStudentsForActivity(selectedStudentsForActivity.filter(id => id !== student.id));
+                                setSelectedCatequizandosForActivity(selectedCatequizandosForActivity.filter(id => id !== catequizando.id));
                               }
                             }}
                             className="w-5 h-5 rounded border-[#c1c7d3] text-[#005da7] focus:ring-[#005da7]"
                           />
                           <div className="w-8 h-8 rounded-full bg-[#eeeeee] overflow-hidden relative">
-                            {student.avatar ? (
+                            {catequizando.avatar ? (
                               <Image 
-                                src={student.avatar} 
-                                alt={student.name} 
+                                src={catequizando.avatar} 
+                                alt={catequizando.name} 
                                 fill
                                 className="object-cover"
                                 referrerPolicy="no-referrer"
                               />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center bg-[#005da7] text-white font-bold text-sm">
-                                {student.name.charAt(0).toUpperCase()}
+                                {catequizando.name.charAt(0).toUpperCase()}
                               </div>
                             )}
                           </div>
-                          <span className="text-sm font-bold text-[#1a1c1c]">{student.name}</span>
+                          <span className="text-sm font-bold text-[#1a1c1c]">{catequizando.name}</span>
                         </label>
                       ))}
                     </motion.div>
@@ -2288,6 +2758,98 @@ export default function TurmaDetalhes() {
                     </button>
                   )}
                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Preparation Planning Modal */}
+      <AnimatePresence>
+        {isPrepModalOpen && selectedActivityForPrep && (
+          <div className="fixed inset-0 z-[155] flex items-center justify-center p-4 md:p-8">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsPrepModalOpen(false)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-2xl bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col"
+            >
+              <div className="p-6 border-b border-[#edeeef] flex justify-between items-center bg-white shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[#007AFF] text-white flex items-center justify-center">
+                    <ClipboardList size={20} />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-extrabold text-[#001e40] font-manrope">Planejar Preparação</h2>
+                    <p className="text-xs text-[#717783] font-bold uppercase tracking-wider">{selectedActivityForPrep.name}</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsPrepModalOpen(false)} className="p-2 text-[#414751] hover:bg-[#f3f3f3] rounded-full transition-colors">
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="p-8 space-y-6 overflow-y-auto max-h-[70vh] no-scrollbar">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Data Prevista para Preparação</label>
+                    <input 
+                      id="prep-date"
+                      type="date" 
+                      defaultValue={selectedActivityForPrep.preparationDetails?.date}
+                      className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#007AFF] transition-all font-bold" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Horário</label>
+                    <input 
+                      id="prep-time"
+                      type="time" 
+                      defaultValue={selectedActivityForPrep.preparationDetails?.time}
+                      className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#007AFF] transition-all font-bold" 
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Local da Preparação</label>
+                    <input 
+                      id="prep-location"
+                      placeholder="Ex: Salão Paroquial ou Sala da Catequese"
+                      defaultValue={selectedActivityForPrep.preparationDetails?.location}
+                      className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#007AFF] transition-all font-bold" 
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Provisões / Ações Necessárias</label>
+                    <textarea 
+                      id="prep-requirements"
+                      className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#007AFF] transition-all h-40 resize-none font-medium text-sm leading-relaxed" 
+                      placeholder="Liste tudo o que precisa ser feito ou providenciado:
+- Comprar insumos
+- Contatar palestrante
+- Preparar lembrancinhas
+- etc..." 
+                      defaultValue={selectedActivityForPrep.preparationDetails?.requirements}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-[#edeeef] flex justify-end gap-4 bg-[#f9fafb]">
+                <button onClick={() => setIsPrepModalOpen(false)} className="px-6 py-3 text-[#414751] font-bold hover:bg-[#f3f3f3] rounded-xl transition-all">Cancelar</button>
+                <button 
+                  onClick={handleSavePreparation}
+                  className="px-8 py-3 bg-[#007AFF] text-white font-bold rounded-xl hover:opacity-90 transition-all flex items-center gap-2"
+                >
+                  <Save size={20} />
+                  Salvar Planejamento
+                </button>
               </div>
             </motion.div>
           </div>
@@ -2619,14 +3181,124 @@ export default function TurmaDetalhes() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Attendance Modal */}
+      <AnimatePresence>
+        {isAttendanceModalOpen && attendanceEvent && (
+          <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 md:p-8">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsAttendanceModalOpen(false)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-2xl bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+            >
+              <div className="p-6 border-b border-[#edeeef] flex justify-between items-center bg-white shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[#34C759] text-white flex items-center justify-center">
+                    <UserCheck size={20} />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-extrabold text-[#001e40] font-manrope">Chamada / Presença</h2>
+                    <p className="text-xs text-[#717783] font-bold uppercase tracking-wider">{attendanceEvent.name}</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsAttendanceModalOpen(false)} className="p-2 text-[#414751] hover:bg-[#f3f3f3] rounded-full transition-colors">
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="p-6 overflow-y-auto flex-1 space-y-4 no-scrollbar">
+                {catequizandosList.map((catequizando) => (
+                  <div key={catequizando.id} className="bg-white p-4 rounded-2xl border border-[#edeeef] flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-[#eeeeee] overflow-hidden relative border border-[#edeeef]">
+                          {catequizando.avatar ? (
+                            <Image src={catequizando.avatar} alt={catequizando.name} fill className="object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-[#005da7] text-white font-bold text-sm">
+                              {catequizando.name.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+                        <span className="font-bold text-[#1a1c1c]">{catequizando.name}</span>
+                      </div>
+                      
+                      <div className="flex bg-[#f3f3f3] p-1 rounded-xl">
+                        <button 
+                          onClick={() => setCurrentAttendance({
+                            ...currentAttendance,
+                            [catequizando.id]: { ...currentAttendance[catequizando.id], status: 'Presente' }
+                          })}
+                          className={cn(
+                            "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
+                            currentAttendance[catequizando.id]?.status === 'Presente' ? "bg-white shadow-sm text-green-600" : "text-[#717783]"
+                          )}
+                        >
+                          Presente
+                        </button>
+                        <button 
+                          onClick={() => setCurrentAttendance({
+                            ...currentAttendance,
+                            [catequizando.id]: { ...currentAttendance[catequizando.id], status: 'Faltante' }
+                          })}
+                          className={cn(
+                            "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
+                            currentAttendance[catequizando.id]?.status === 'Faltante' ? "bg-white shadow-sm text-red-600" : "text-[#717783]"
+                          )}
+                        >
+                          Faltante
+                        </button>
+                      </div>
+                    </div>
+
+                    {currentAttendance[catequizando.id]?.status === 'Faltante' && (
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
+                        <input 
+                          placeholder="Justificativa da falta (opcional)"
+                          value={currentAttendance[catequizando.id]?.justification || ''}
+                          onChange={(e) => setCurrentAttendance({
+                            ...currentAttendance,
+                            [catequizando.id]: { ...currentAttendance[catequizando.id], justification: e.target.value }
+                          })}
+                          className="w-full bg-[#f8f9fa] border-none rounded-xl py-3 px-4 text-xs font-medium focus:ring-1 focus:ring-red-200 transition-all shadow-inner"
+                        />
+                      </motion.div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="p-6 border-t border-[#edeeef] flex justify-end gap-3 bg-[#f9fafb]">
+                <button onClick={() => setIsAttendanceModalOpen(false)} className="px-6 py-2.5 text-[#414751] font-bold hover:bg-[#f3f3f3] rounded-xl transition-all">Cancelar</button>
+                <button 
+                  onClick={handleSaveAttendance}
+                  className="px-8 py-2.5 bg-[#34C759] text-white font-bold rounded-xl hover:bg-[#2eb350] transition-all flex items-center gap-2 shadow-sm"
+                >
+                  <Save size={18} />
+                  Salvar Chamada
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-function MeetingCard({ meeting, onView, onPresent, onDelete, onStatusChange, viewMode = 'grid' }: { 
+function MeetingCard({ meeting, onView, onPresent, onAttendance, onDelete, onStatusChange, viewMode = 'grid' }: { 
   meeting: Meeting, 
   onView: () => void, 
   onPresent: () => void, 
+  onAttendance: () => void,
   onDelete: () => void,
   onStatusChange: (status: MeetingStatus) => void,
   viewMode?: 'grid' | 'list'
@@ -2679,8 +3351,18 @@ function MeetingCard({ meeting, onView, onPresent, onDelete, onStatusChange, vie
 
           <div className="flex items-center justify-end mt-1">
             <div className="flex gap-2 w-full justify-end">
-              <button onClick={onView} className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#34C759] hover:bg-[#2eb350] rounded-lg text-[10px] font-bold uppercase tracking-wider text-white transition-all active:scale-95 shadow-sm"><Eye size={12} /> Abrir</button>
-              <button onClick={onPresent} className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#007AFF] hover:bg-[#0056b3] rounded-lg text-[10px] font-bold uppercase tracking-wider text-white transition-all active:scale-95 shadow-sm"><Presentation size={12} /> Apresentar</button>
+               <button onClick={onView} className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#34C759] hover:bg-[#2eb350] rounded-lg text-[10px] font-bold uppercase tracking-wider text-white transition-all active:scale-95 shadow-sm"><Eye size={12} /> Abrir</button>
+              <button onClick={onAttendance} className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#007AFF] hover:bg-[#0056b3] rounded-lg text-[10px] font-bold uppercase tracking-wider text-white transition-all active:scale-95 shadow-sm"><UserCheck size={12} /> Chamada</button>
+              <button onClick={onPresent} className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gray-500 hover:bg-gray-600 rounded-lg text-[10px] font-bold uppercase tracking-wider text-white transition-all active:scale-95 shadow-sm"><Presentation size={12} /> Apresentar</button>
+              <ReportButton 
+                variant="chip"
+                iconOnly
+                type="turmas"
+                reportType="ficha-encontro"
+                reportTitle={meeting.tema}
+                moduleName="Turmas"
+                data={meeting}
+              />
             </div>
           </div>
         </div>
@@ -2691,7 +3373,7 @@ function MeetingCard({ meeting, onView, onPresent, onDelete, onStatusChange, vie
   return (
     <motion.div 
       whileHover={{ 
-        y: -2
+        y: -1
       }}
       className={cn(
         "rounded-[24px] border-2 flex flex-col overflow-hidden transition-all group relative shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] bg-[#eaf8f1]",
@@ -2706,6 +3388,15 @@ function MeetingCard({ meeting, onView, onPresent, onDelete, onStatusChange, vie
 
       <div className="relative h-24 w-full z-10 bg-[#eaf8f1] border-b border-[#c1c7d3]/30">
         <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+          <ReportButton 
+            variant="chip"
+            iconOnly
+            type="turmas"
+            reportType="ficha-encontro"
+            reportTitle={meeting.tema}
+            moduleName="Turmas"
+            data={meeting}
+          />
           <button 
             onClick={(e) => {
               e.stopPropagation();
@@ -2748,7 +3439,7 @@ function MeetingCard({ meeting, onView, onPresent, onDelete, onStatusChange, vie
         </div>
 
         <div className="flex gap-2 pt-3 border-t border-[#c1c7d3]/30">
-          <button 
+           <button 
             onClick={onView}
             className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-[#34C759] hover:bg-[#2eb350] rounded-xl text-[10px] font-bold uppercase tracking-wider text-white transition-all active:scale-95 shadow-sm"
           >
@@ -2756,8 +3447,15 @@ function MeetingCard({ meeting, onView, onPresent, onDelete, onStatusChange, vie
             Abrir
           </button>
           <button 
-            onClick={onPresent}
+            onClick={onAttendance}
             className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-[#007AFF] hover:bg-[#0056b3] rounded-xl text-[10px] font-bold uppercase tracking-wider text-white transition-all active:scale-95 shadow-sm"
+          >
+            <UserCheck size={14} />
+            Chamada
+          </button>
+          <button 
+            onClick={onPresent}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-gray-500 hover:bg-gray-600 rounded-xl text-[10px] font-bold uppercase tracking-wider text-white transition-all active:scale-95 shadow-sm"
           >
             <Presentation size={14} />
             Apresentar

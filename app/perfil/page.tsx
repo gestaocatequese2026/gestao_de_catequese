@@ -8,87 +8,104 @@ import { User, Mail, Lock, LogOut, Save, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
 
+import { createClient } from '@/utils/supabase/client';
+
 export default function PerfilPage() {
   const router = useRouter();
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [user, setUser] = useState<any>(null);
   
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [dataNascimento, setDataNascimento] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+
+  const supabase = createClient();
+
+  useEffect(() => {
+    async function getUser() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push('/login');
+        return;
+      }
+      
+      setUser(session.user);
+      setEmail(session.user.email || '');
+
+      // Fetch profile data
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .maybeSingle();
+
+      if (profile) {
+        setName(profile.name || '');
+        setDataNascimento(profile.birth_date || '');
+      } else {
+        setName(session.user.user_metadata?.name || '');
+      }
+      setLoading(false);
+    }
+    getUser();
+  }, [router]);
+
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   };
-  
-  const [user, setUser] = useState<any>(() => {
-    if (typeof window !== 'undefined') {
-      const currentUserStr = localStorage.getItem('app_currentUser');
-      return currentUserStr ? JSON.parse(currentUserStr) : null;
-    }
-    return null;
-  });
-  const [name, setName] = useState(() => user?.name || '');
-  const [email, setEmail] = useState(() => user?.email || '');
-  const [dataNascimento, setDataNascimento] = useState(() => user?.dataNascimento || '');
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined' && !localStorage.getItem('app_currentUser')) {
-      router.push('/login');
-    }
-  }, [router]);
-
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
 
-    setTimeout(() => {
-      const usersStr = localStorage.getItem('app_users');
-      const users = usersStr ? JSON.parse(usersStr) : [];
-      const userIndex = users.findIndex((u: any) => u.id === user.id);
-
-      if (userIndex !== -1) {
-        // Verify current password if trying to change password
-        if (newPassword) {
-          if (users[userIndex].password !== currentPassword) {
-            showToast('Senha atual incorreta.', 'error');
-            setIsSaving(false);
-            return;
-          }
-          if (newPassword.length < 6) {
-            showToast('A nova senha deve ter no mínimo 6 caracteres.', 'error');
-            setIsSaving(false);
-            return;
-          }
-          users[userIndex].password = newPassword;
-        }
-
-        // Update other fields
-        users[userIndex].name = name;
-        users[userIndex].email = email;
-        users[userIndex].dataNascimento = dataNascimento;
-
-        localStorage.setItem('app_users', JSON.stringify(users));
-        
-        // Update current user
-        const updatedCurrentUser = { ...user, name, email, dataNascimento };
-        if (newPassword) updatedCurrentUser.password = newPassword;
-        
-        localStorage.setItem('app_currentUser', JSON.stringify(updatedCurrentUser));
-        setUser(updatedCurrentUser);
-        
-        setCurrentPassword('');
-        setNewPassword('');
-        showToast('Perfil atualizado com sucesso!', 'success');
+    try {
+      // Update Auth Email if changed (Supabase might require confirmation)
+      if (email !== user.email) {
+        const { error: emailError } = await supabase.auth.updateUser({ email });
+        if (emailError) throw emailError;
       }
-      
+
+      // Update Password if provided
+      if (newPassword) {
+        const { error: pwdError } = await supabase.auth.updateUser({ password: newPassword });
+        if (pwdError) throw pwdError;
+      }
+
+      // Upsert profile data
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          name,
+          email,
+          birth_date: dataNascimento || null,
+          updated_at: new Date().toISOString()
+        });
+
+      if (profileError) throw profileError;
+
+      showToast('Perfil atualizado com sucesso!', 'success');
+      setCurrentPassword('');
+      setNewPassword('');
+    } catch (err: any) {
+      console.error('Erro ao salvar perfil:', err);
+      showToast(err.message || 'Erro ao salvar alterações.', 'error');
+    } finally {
       setIsSaving(false);
-    }, 800);
+    }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('app_currentUser');
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     router.push('/login');
   };
+
+  if (loading) return null;
 
   if (!user) return null;
 

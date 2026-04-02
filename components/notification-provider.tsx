@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Notification, NotificationSettings, INITIAL_NOTIFICATIONS, DEFAULT_SETTINGS } from '@/lib/notifications';
 import { useAppStore } from '@/lib/store';
+import { createClient } from '@/utils/supabase/client';
 
 interface NotificationContextType {
   notifications: Notification[];
@@ -19,7 +20,8 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>(INITIAL_NOTIFICATIONS);
   const [settings, setSettings] = useState<NotificationSettings>(DEFAULT_SETTINGS);
-  const { classes, isLoaded } = useAppStore();
+  const { classes, isLoaded, userId } = useAppStore();
+  const supabase = createClient();
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
@@ -47,98 +49,122 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   // Check for upcoming events
   useEffect(() => {
-    if (!settings.enabled || !isLoaded) return;
+    if (!settings.enabled || !isLoaded || !userId) return;
 
-    const checkEvents = () => {
+    const checkEvents = async () => {
       const now = new Date();
+      const tenDaysFromNow = new Date();
+      tenDaysFromNow.setDate(now.getDate() + 10);
 
-      setNotifications(prev => {
-        const newNotifications: Notification[] = [];
-
-        // 1. Check Birthdays
-        const allBirthdays: { id: string, name: string, date: string, type: 'catequizando' | 'catequista' }[] = [];
-        
-        // Add Catequistas
-        const usersStr = typeof window !== 'undefined' ? localStorage.getItem('app_users') : null;
-        if (usersStr) {
-          try {
-            const users = JSON.parse(usersStr);
-            users.forEach((u: any) => {
-              if (u.dataNascimento) {
-                allBirthdays.push({ id: `user_${u.id}`, name: u.name, date: u.dataNascimento, type: 'catequista' });
-              }
-            });
-          } catch (e) {}
+      // Helper to check if a date is within the next 10 days (ignoring year for birthdays)
+      const isWithinTenDays = (dateStr: string, isBirthday: boolean) => {
+        const eventDate = new Date(dateStr);
+        if (isBirthday) {
+          eventDate.setFullYear(now.getFullYear());
+          // If birthday already passed this year, check next year
+          if (eventDate < new Date(now.setHours(0,0,0,0))) {
+            eventDate.setFullYear(now.getFullYear() + 1);
+          }
         }
-
-        // Add Catequizandos
-        classes.forEach(cls => {
-          const studentsStr = typeof window !== 'undefined' ? localStorage.getItem(`studentsList_${cls.id}`) : null;
-          if (studentsStr) {
-            try {
-              const students = JSON.parse(studentsStr);
-              students.forEach((s: any) => {
-                if (s.birthDate) {
-                  allBirthdays.push({ id: `student_${s.id}`, name: s.name, date: s.birthDate, type: 'catequizando' });
-                }
-              });
-            } catch (e) {}
-          }
-        });
-
-        const currentMonth = now.getMonth();
         
-        allBirthdays.forEach(birthday => {
-          const [year, month, day] = birthday.date.split('-').map(Number);
-          
-          if (month - 1 === currentMonth) {
-            const birthdayDate = new Date(now.getFullYear(), month - 1, day);
-            const timeDiff = birthdayDate.getTime() - now.getTime();
-            
-            const exists = prev.some(n => {
-              if (n.birthdayId !== birthday.id) return false;
-              if (!n.eventDate) return true;
-              return new Date(n.eventDate).getMonth() === currentMonth;
-            });
-            
-            if (!exists) {
-              const daysLeft = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
-              let message = '';
-              
-              if (daysLeft === 0) {
-                message = `${birthday.name} (${birthday.type}) faz aniversário hoje!`;
-              } else if (daysLeft === 1) {
-                message = `${birthday.name} (${birthday.type}) faz aniversário amanhã!`;
-              } else if (daysLeft > 1) {
-                message = `${birthday.name} (${birthday.type}) faz aniversário dia ${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}.`;
-              } else {
-                message = `O aniversário de ${birthday.name} (${birthday.type}) foi dia ${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}.`;
-              }
+        const diffTime = eventDate.getTime() - new Date().getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays >= 0 && diffDays <= 10;
+      };
 
-              newNotifications.push({
-                id: Math.random().toString(36).substring(2, 9),
-                title: 'Aniversariante do Mês',
-                message,
-                type: 'birthday',
-                link: '/',
-                birthdayId: birthday.id,
-                isRead: false,
-                date: new Date().toISOString(),
-                eventDate: birthdayDate.toISOString(),
-              });
-            }
+      const newNotifications: Notification[] = [];
+
+      // 1. Fetch Birthdays from Supabase
+      // Catequistas
+      const { data: catechists } = await supabase
+        .from('catechists')
+        .select('id, name, birth_date')
+        .not('birth_date', 'is', null);
+      
+      if (catechists) {
+        catechists.forEach(c => {
+          if (isWithinTenDays(c.birth_date, true)) {
+            const bday = new Date(c.birth_date);
+            bday.setFullYear(now.getFullYear());
+            if (bday < new Date(now.setHours(0,0,0,0))) bday.setFullYear(now.getFullYear() + 1);
+
+            newNotifications.push({
+              id: `bday_cat_${c.id}_${bday.getFullYear()}`,
+              title: 'Aniversário Chegando!',
+              message: `O catequista ${c.name} faz aniversário em breve (${bday.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })})!`,
+              type: 'birthday',
+              link: '/cadastros/catequistas',
+              isRead: false,
+              date: new Date().toISOString(),
+              eventDate: bday.toISOString()
+            });
           }
         });
+      }
 
-        if (newNotifications.length === 0) return prev;
-        return [...newNotifications, ...prev];
-      });
+      // Catequizandos
+      const { data: students } = await supabase
+        .from('students')
+        .select('id, name, birth_date, class_id')
+        .not('birth_date', 'is', null);
+
+      if (students) {
+        students.forEach(s => {
+          if (isWithinTenDays(s.birth_date, true)) {
+            const bday = new Date(s.birth_date);
+            bday.setFullYear(now.getFullYear());
+            if (bday < new Date(now.setHours(0,0,0,0))) bday.setFullYear(now.getFullYear() + 1);
+
+            newNotifications.push({
+              id: `bday_stu_${s.id}_${bday.getFullYear()}`,
+              title: 'Aniversário de Catequizando',
+              message: `O catequizando ${s.name} faz aniversário dia ${bday.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}!`,
+              type: 'birthday',
+              link: `/turmas/${s.class_id}/catequizando/${s.id}`,
+              isRead: false,
+              date: new Date().toISOString(),
+              eventDate: bday.toISOString()
+            });
+          }
+        });
+      }
+
+      // 2. Fetch Activities from Supabase
+      const { data: activities } = await supabase
+        .from('activities')
+        .select('id, name, date, class_id')
+        .gte('date', now.toISOString().split('T')[0])
+        .lte('date', tenDaysFromNow.toISOString().split('T')[0]);
+
+      if (activities) {
+        activities.forEach(a => {
+          newNotifications.push({
+            id: `act_${a.id}`,
+            title: 'Atividade Próxima',
+            message: `A atividade "${a.name}" acontecerá dia ${new Date(a.date + 'T12:00:00').toLocaleDateString('pt-BR')}!`,
+            type: 'activity',
+            link: `/turmas/${a.class_id}`,
+            isRead: false,
+            date: new Date().toISOString(),
+            eventDate: new Date(a.date + 'T12:00:00').toISOString()
+          });
+        });
+      }
+
+      if (newNotifications.length > 0) {
+        setNotifications(prev => {
+          const existingIds = new Set(prev.map(n => n.id));
+          const trulyNew = newNotifications.filter(n => !existingIds.has(n.id));
+          if (trulyNew.length === 0) return prev;
+          return [...trulyNew, ...prev];
+        });
+      }
     };
 
     checkEvents();
-    const interval = setInterval(checkEvents, 60000); // Check every minute
+    const interval = setInterval(checkEvents, 300000); // Check every 5 minutes
     return () => clearInterval(interval);
-  }, [settings, classes, isLoaded]);
+  }, [settings, classes, isLoaded, userId]);
 
   return (
     <NotificationContext.Provider value={{

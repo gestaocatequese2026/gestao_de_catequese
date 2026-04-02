@@ -9,41 +9,75 @@ import Image from 'next/image';
 import { useRouter, useParams } from 'next/navigation';
 import { ConfirmationModal } from '@/components/confirmation-modal';
 
+import { createClient } from '@/utils/supabase/client';
+
 export default function CatequizandoPerfil() {
   const router = useRouter();
   const params = useParams();
   const classId = params.id as string;
-  const studentId = params.catequizandoId as string;
+  const catequizandoId = params.catequizandoId as string;
+  const supabase = createClient();
   
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [student, setStudent] = useState<any>(() => {
-    if (typeof window !== 'undefined') {
-      const savedStudents = localStorage.getItem(`studentsList_${classId}`);
-      if (savedStudents) {
-        const students = JSON.parse(savedStudents);
-        return students.find((s: any) => s.id.toString() === studentId) || null;
-      }
+  const [loading, setLoading] = useState(true);
+  const [catequizando, setCatequizando] = useState<any>(null);
+
+  const calculateAge = (birthDate: string) => {
+    if (!birthDate) return '--';
+    const today = new Date();
+    const birth = new Date(birthDate + 'T12:00:00');
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+      age--;
     }
-    return null;
-  });
+    return age;
+  };
+
+  useEffect(() => {
+    async function loadCatequizando() {
+      if (!catequizandoId) return;
+      
+      const { data, error } = await supabase
+        .from('students')
+        .select('*')
+        .eq('id', catequizandoId)
+        .single();
+      
+      if (data) {
+        setCatequizando({
+          ...data,
+          age: calculateAge(data.birth_date),
+          photo: data.photo_url,
+          parents: data.parents_name,
+          birthDate: data.birth_date,
+          attendance: '100%' // Placeholder
+        });
+      }
+      setLoading(false);
+    }
+    
+    loadCatequizando();
+  }, [catequizandoId]);
 
   const handleDelete = () => {
     setIsDeleteModalOpen(true);
   };
 
-  const confirmDelete = () => {
-    if (typeof window !== 'undefined') {
-      const savedStudents = localStorage.getItem(`studentsList_${classId}`);
-      if (savedStudents) {
-        let students = JSON.parse(savedStudents);
-        students = students.filter((s: any) => s.id.toString() !== studentId);
-        localStorage.setItem(`studentsList_${classId}`, JSON.stringify(students));
-      }
+  const confirmDelete = async () => {
+    const { error } = await supabase
+      .from('students')
+      .delete()
+      .eq('id', catequizandoId);
+      
+    if (!error) {
+      router.push(`/turmas/${classId}`);
+    } else {
+      console.error('Error deleting catequizando:', error);
     }
-    router.push(`/turmas/${classId}`);
   };
 
-  if (!student) {
+  if (loading) {
     return (
       <div className="min-h-screen pb-32 flex items-center justify-center">
         <p className="text-[#717783]">Carregando...</p>
@@ -64,10 +98,10 @@ export default function CatequizandoPerfil() {
         >
           <div className="relative group">
             <div className="w-32 h-32 md:w-48 md:h-48 rounded-full overflow-hidden bg-[#e8e8e8] ring-4 ring-[#d4e3ff] flex items-center justify-center text-[#c1c7d3]">
-              {student.photo ? (
+              {catequizando.photo ? (
                 <Image 
-                  src={student.photo}
-                  alt={student.name}
+                  src={catequizando.photo}
+                  alt={catequizando.name}
                   width={192}
                   height={192}
                   className="w-full h-full object-cover"
@@ -83,8 +117,8 @@ export default function CatequizandoPerfil() {
           </div>
           <div className="flex-1 space-y-4">
             <div className="space-y-1">
-              <h2 className="font-manrope text-4xl font-extrabold tracking-tight text-[#005da7]">{student.name}</h2>
-              <p className="font-plus-jakarta text-[#414751] font-medium text-lg">{student.age} Anos</p>
+              <h2 className="font-manrope text-4xl font-extrabold tracking-tight text-[#005da7]">{catequizando.name}</h2>
+              <p className="font-plus-jakarta text-[#414751] font-medium text-lg">{catequizando.age} Anos</p>
             </div>
             <div className="flex flex-wrap gap-3 pt-2">
               <button className="bg-gradient-to-r from-[#005da7] to-[#2976c7] text-white px-8 py-3 rounded-full font-bold flex items-center gap-2 active:scale-95 duration-200">
@@ -121,10 +155,10 @@ export default function CatequizandoPerfil() {
                 Informações Familiares
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <InfoItem label="Pais" value={student.parents || '--'} />
-                <InfoItem label="Contato" value={student.phone || '--'} icon={Phone} />
-                <InfoItem label="Endereço" value={student.address || '--'} icon={MapPin} italic />
-                <InfoItem label="Data de Nascimento" value={student.birthDate || '--'} icon={Calendar} />
+                <InfoItem label="Pais" value={catequizando.parents || '--'} />
+                <InfoItem label="Contato" value={catequizando.phone || '--'} icon={Phone} />
+                <InfoItem label="Endereço" value={catequizando.address || '--'} icon={MapPin} italic />
+                <InfoItem label="Data de Nascimento" value={catequizando.birthDate || '--'} icon={Calendar} />
               </div>
             </motion.div>
 
@@ -140,7 +174,7 @@ export default function CatequizandoPerfil() {
                   <Calendar size={24} />
                   Presença Recente
                 </h3>
-                <span className="text-sm font-bold text-[#735c00] bg-[#ffe088] px-3 py-1 rounded-full">{student.attendance}% Frequência</span>
+                <span className="text-sm font-bold text-[#735c00] bg-[#ffe088] px-3 py-1 rounded-full">{catequizando.attendance}% Frequência</span>
               </div>
               <div className="flex justify-between gap-2 overflow-x-auto pb-2">
                 <PresenceItem date="06 Set" status="present" />

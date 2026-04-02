@@ -31,8 +31,8 @@ export function NotificationBell() {
       const now = new Date();
       const timeDiff = eventDate.getTime() - now.getTime();
       const daysDiff = timeDiff / (1000 * 60 * 60 * 24);
-      // Event is in the future and within 7 days, or it's today
-      return daysDiff >= -1 && daysDiff <= 7;
+      // Event is in the future and within 10 days, or it's today
+      return daysDiff >= -1 && daysDiff <= 10;
     }
     return false;
   });
