@@ -13,6 +13,8 @@ export interface ClassItem {
   location?: string;
   status: 'Ativa' | 'Inativa' | 'Iniciando';
   icon: string;
+  community_id?: string;
+  catechist_id?: string;
 }
 
 export interface Student {
@@ -139,7 +141,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           schedule: newClass.schedule,
           location: newClass.location,
           status: newClass.status || 'Ativa',
-          icon: newClass.icon
+          icon: newClass.icon,
+          community_id: newClass.community_id,
+          catechist_id: newClass.catechist_id
         }
       ])
       .select()

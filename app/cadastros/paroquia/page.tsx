@@ -6,7 +6,8 @@ import { BottomNav } from '@/components/bottom-nav';
 import { 
   Church, User, MapPin, Phone, Mail, 
   Save, Landmark, ShieldCheck, Info,
-  Loader2, CheckCircle2, AlertCircle
+  Loader2, CheckCircle2, AlertCircle,
+  Plus, Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
@@ -18,9 +19,13 @@ export default function ParoquiaPage() {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [parishId, setParishId] = useState<string | null>(null);
+  const [communities, setCommunities] = useState<any[]>([]);
+  const [newCommunityName, setNewCommunityName] = useState('');
+  const [isAddingCommunity, setIsAddingCommunity] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
+    community: '',
     priest_name: '',
     diocese: '',
     address: '',
@@ -49,6 +54,7 @@ export default function ParoquiaPage() {
           setParishId(data.id);
           setFormData({
             name: data.name || '',
+            community: data.community || '',
             priest_name: data.priest_name || '',
             diocese: data.diocese || '',
             address: data.address || '',
@@ -63,8 +69,42 @@ export default function ParoquiaPage() {
       }
     }
 
+    async function loadCommunities() {
+      const { data } = await supabase.from('communities').select('*').order('name');
+      if (data) setCommunities(data);
+    }
+
     loadParishData();
+    loadCommunities();
   }, []);
+
+  const handleAddCommunity = async () => {
+    if (!newCommunityName.trim()) return;
+    setIsAddingCommunity(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    const { data, error } = await supabase
+      .from('communities')
+      .insert([{ name: newCommunityName, user_id: session.user.id }])
+      .select()
+      .single();
+
+    if (data) {
+      setCommunities([...communities, data]);
+      setNewCommunityName('');
+      showToast('Comunidade adicionada!', 'success');
+    }
+    setIsAddingCommunity(false);
+  };
+
+  const handleDeleteCommunity = async (id: string) => {
+    const { error } = await supabase.from('communities').delete().eq('id', id);
+    if (!error) {
+      setCommunities(communities.filter(c => c.id !== id));
+      showToast('Comunidade removida.', 'success');
+    }
+  };
 
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type });
@@ -166,7 +206,7 @@ export default function ParoquiaPage() {
             <div className="w-16 h-16 bg-white/20 rounded-2xl backdrop-blur-md flex items-center justify-center mb-6">
               <Church size={32} />
             </div>
-            <h2 className="text-3xl font-manrope font-bold mb-2">Informações da Comunidade</h2>
+            <h2 className="text-3xl font-manrope font-bold mb-2 uppercase tracking-widest leading-tight">Paróquia</h2>
             <p className="text-white/80 leading-relaxed max-w-md">
               Mantenha os dados da sua paróquia ou comunidade atualizados para melhor organização da catequese.
             </p>
@@ -184,7 +224,7 @@ export default function ParoquiaPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {/* Parish Name */}
               <div className="space-y-2">
-                <label className="text-xs font-black uppercase tracking-widest text-[#717783] ml-1">Nome da Paróquia / Comunidade</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-[#717783] ml-1">Nome da Paróquia</label>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-[#c1c7d3] group-focus-within:text-[#005da7] transition-colors">
                     <Landmark size={20} />
@@ -194,6 +234,22 @@ export default function ParoquiaPage() {
                     value={formData.name}
                     onChange={e => setFormData({...formData, name: e.target.value})}
                     placeholder="Ex: Paróquia Santo Antônio"
+                    className="w-full bg-[#f8f9fa] border-none rounded-2xl py-4 pl-12 pr-6 focus:ring-2 focus:ring-[#005da7] transition-all text-[#1a1c1c] font-bold placeholder:font-normal"
+                  />
+                </div>
+              </div>
+
+              {/* Community Name */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[#717783] ml-1">Comunidade</label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-[#c1c7d3] group-focus-within:text-[#005da7] transition-colors">
+                    <MapPin size={20} />
+                  </div>
+                  <input 
+                    value={formData.community}
+                    onChange={e => setFormData({...formData, community: e.target.value})}
+                    placeholder="Ex: Comunidade Nossa Senhora das Graças"
                     className="w-full bg-[#f8f9fa] border-none rounded-2xl py-4 pl-12 pr-6 focus:ring-2 focus:ring-[#005da7] transition-all text-[#1a1c1c] font-bold placeholder:font-normal"
                   />
                 </div>
@@ -313,6 +369,55 @@ export default function ParoquiaPage() {
               </button>
             </div>
           </form>
+        </div>
+
+        {/* Communities Management Section */}
+        <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-black/10 overflow-hidden">
+          <div className="p-8 md:p-10 space-y-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 bg-[#eef5fd] rounded-xl flex items-center justify-center text-[#005da7]">
+                <MapPin size={22} />
+              </div>
+              <div>
+                <h3 className="text-xl font-manrope font-bold text-[#1a1c1c]">Gestão de Comunidades</h3>
+                <p className="text-sm text-[#717783]">Cadastre as comunidades que compõem sua paróquia.</p>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <input 
+                value={newCommunityName}
+                onChange={e => setNewCommunityName(e.target.value)}
+                placeholder="Nome da nova comunidade"
+                className="flex-1 bg-[#f8f9fa] border-none rounded-2xl py-4 px-6 focus:ring-2 focus:ring-[#005da7] transition-all text-[#1a1c1c] font-bold"
+              />
+              <button 
+                onClick={handleAddCommunity}
+                disabled={isAddingCommunity || !newCommunityName.trim()}
+                className="bg-[#005da7] text-white px-6 rounded-2xl font-bold flex items-center gap-2 hover:bg-[#003f73] transition-all disabled:opacity-50"
+              >
+                {isAddingCommunity ? <Loader2 size={20} className="animate-spin" /> : <Plus size={20} />}
+                Adicionar
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {communities.map(comm => (
+                <div key={comm.id} className="flex items-center justify-between p-4 bg-[#f8f9fa] rounded-2xl border border-transparent hover:border-[#005da7]/20 transition-all group">
+                  <span className="font-bold text-[#1a1c1c]">{comm.name}</span>
+                  <button 
+                    onClick={() => handleDeleteCommunity(comm.id)}
+                    className="p-2 text-[#717783] hover:text-[#ba1a1a] hover:bg-[#ffdad6] rounded-xl transition-all"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              ))}
+              {communities.length === 0 && (
+                <p className="col-span-full text-center py-8 text-[#717783] italic">Nenhuma comunidade cadastrada ainda.</p>
+              )}
+            </div>
+          </div>
         </div>
       </main>
 

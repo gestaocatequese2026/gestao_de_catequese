@@ -24,6 +24,7 @@ export default function CadastroCatequistas() {
   const [catechists, setCatechists] = useState<any[]>([]);
   const [editingCatechist, setEditingCatechist] = useState<any | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [communities, setCommunities] = useState<any[]>([]);
 
   const supabase = createClient();
 
@@ -33,6 +34,8 @@ export default function CadastroCatequistas() {
       if (session) {
         setUserId(session.user.id);
         fetchCatechists();
+        const { data } = await supabase.from('communities').select('*').order('name');
+        if (data) setCommunities(data);
       }
     }
     init();
@@ -56,6 +59,7 @@ export default function CadastroCatequistas() {
         address: c.address,
         observations: c.observations,
         status: c.status,
+        community_id: c.community_id,
         photo: c.photo_url || 'https://lh3.googleusercontent.com/a/ACg8ocL_X_X_X_X_X_X_X_X_X_X_X_X_X_X_X_X_X_X=s96-c'
       })));
     }
@@ -104,8 +108,9 @@ export default function CadastroCatequistas() {
       role: formData.get('role') as string,
       address: formData.get('address') as string,
       observations: formData.get('observations') as string,
+      community_id: formData.get('community_id') as string || null,
       status: 'Ativo',
-      photo_url: editingCatechist?.photo || ''
+      photo_url: formData.get('photo_url') as string || null
     };
 
     let result;
@@ -258,10 +263,19 @@ export default function CadastroCatequistas() {
               <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-8 space-y-8 no-scrollbar">
                 {/* Photo Upload Placeholder */}
                 <div className="flex flex-col items-center gap-4">
-                  <div className="w-24 h-24 rounded-full bg-[#f3f3f3] border-2 border-dashed border-[#c1c7d3] flex items-center justify-center text-[#c1c7d3] cursor-pointer hover:bg-[#e8e8e8] transition-all">
-                    <Camera size={32} />
+                  <div className="relative group">
+                    <div className="w-24 h-24 rounded-full bg-[#f3f3f3] border-2 border-dashed border-[#c1c7d3] flex items-center justify-center overflow-hidden transition-all group-hover:border-[#005da7]">
+                      {editingCatechist?.photo ? (
+                        <Image src={editingCatechist.photo} alt="Preview" fill className="object-cover" />
+                      ) : (
+                        <Camera size={32} className="text-[#c1c7d3]" />
+                      )}
+                    </div>
                   </div>
-                  <p className="text-xs font-bold text-[#005da7] uppercase tracking-widest">Adicionar Foto</p>
+                  <div className="w-full max-w-xs space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[#717783] text-center block">URL da Foto</label>
+                    <input name="photo_url" defaultValue={editingCatechist?.photo} className="w-full bg-[#f3f3f3] border-none rounded-xl py-2 px-3 text-xs focus:ring-2 focus:ring-[#005da7] transition-all" placeholder="Link da imagem (ex: Google Photos, OneDrive)" />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -308,6 +322,16 @@ export default function CadastroCatequistas() {
                       <option value="Coordenador(a)">Coordenador(a)</option>
                       <option value="Auxiliar">Auxiliar</option>
                       <option value="Palestrante">Palestrante</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Comunidade</label>
+                    <select name="community_id" defaultValue={editingCatechist?.community_id} className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#005da7] transition-all">
+                      <option value="">Nenhuma / Paróquia Sede</option>
+                      {communities.map(comm => (
+                        <option key={comm.id} value={comm.id}>{comm.name}</option>
+                      ))}
                     </select>
                   </div>
                 </div>

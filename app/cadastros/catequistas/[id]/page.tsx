@@ -8,23 +8,41 @@ import { motion, AnimatePresence } from 'motion/react';
 import Image from 'next/image';
 import { useRouter, useParams } from 'next/navigation';
 
+import { createClient } from '@/utils/supabase/client';
+
 export default function CatequistaPerfil() {
   const router = useRouter();
   const params = useParams();
   const catechistId = params.id as string;
-  
-  const [catechist, setCatechist] = useState<any>(() => {
-    if (typeof window !== 'undefined') {
-      const currentUserStr = localStorage.getItem('app_currentUser');
-      const userId = currentUserStr ? JSON.parse(currentUserStr).id : 'default';
-      const savedCatechists = localStorage.getItem(`app_catechists_${userId}`);
-      if (savedCatechists) {
-        const catechists = JSON.parse(savedCatechists);
-        return catechists.find((c: any) => c.id.toString() === catechistId) || null;
+  const [loading, setLoading] = useState(true);
+  const [catechist, setCatechist] = useState<any>(null);
+  const supabase = createClient();
+
+  useEffect(() => {
+    async function loadCatechist() {
+      const { data, error } = await supabase
+        .from('catechists')
+        .select('*')
+        .eq('id', catechistId)
+        .single();
+      
+      if (data) {
+        setCatechist({
+          id: data.id,
+          name: data.name,
+          email: data.email,
+          phone: data.phone,
+          birthDate: data.birth_date,
+          role: data.role,
+          address: data.address,
+          observations: data.observations,
+          photo: data.photo_url || 'https://lh3.googleusercontent.com/a/ACg8ocL_X_X_X_X_X_X_X_X_X_X_X_X_X_X_X_X_X_X=s96-c'
+        });
       }
+      setLoading(false);
     }
-    return null;
-  });
+    if (catechistId) loadCatechist();
+  }, [catechistId]);
 
   const calculateAge = (birthDate: string) => {
     if (!birthDate) return '';
@@ -38,10 +56,19 @@ export default function CatequistaPerfil() {
     return age;
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen pb-32 flex items-center justify-center bg-[#f8f9fa]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#005da7]"></div>
+      </div>
+    );
+  }
+
   if (!catechist) {
     return (
-      <div className="min-h-screen pb-32 flex items-center justify-center">
-        <p className="text-[#717783]">Carregando...</p>
+      <div className="min-h-screen pb-32 flex flex-col items-center justify-center bg-[#f8f9fa] gap-4">
+        <p className="text-[#717783] font-bold">Catequista não encontrado.</p>
+        <button onClick={() => router.back()} className="text-[#005da7] font-bold underline">Voltar</button>
       </div>
     );
   }

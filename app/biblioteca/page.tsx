@@ -6,6 +6,7 @@ import { BottomNav } from '@/components/bottom-nav';
 import { Search, Filter, Clock, X, BookOpen, Users, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Image from 'next/image';
+import { cn } from '@/lib/utils';
 import { CatequeseTemplate, initialTemplates } from '@/lib/templates';
 import { ReportButton } from '@/components/report-button';
 
@@ -45,6 +46,7 @@ export default function Biblioteca() {
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('Todos');
   const [activePublico, setActivePublico] = useState('Todos');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const filtered = useMemo(() => {
     return initialTemplates.filter(t => {
@@ -92,34 +94,101 @@ export default function Biblioteca() {
           <p className="text-[#717783] mt-1">Textos de apoio e fundamentações para os encontros de catequese.</p>
         </div>
 
-        {/* Search */}
-        <div className="relative">
-          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#717783]" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar por tema ou título..."
-            className="w-full pl-11 pr-4 py-3 bg-white rounded-xl border border-black/10 focus:ring-2 focus:ring-[#005da7] transition-all max-w-xl"
-          />
-        </div>
-
-        {/* Filters */}
-        <div className="space-y-3">
-          <div className="flex gap-2 flex-wrap">
-            {CATEGORIES.map(cat => (
-              <button key={cat} onClick={() => setActiveCategory(cat)}
-                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${activeCategory === cat ? 'bg-[#001e40] text-white' : 'bg-white border border-black/10 text-[#43474f] hover:bg-[#f3f4f5]'}`}>
-                {cat}
-              </button>
-            ))}
+        {/* Search & Filters */}
+        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between bg-white p-4 rounded-[24px] border border-black/5 shadow-sm">
+          <div className="relative w-full max-w-lg">
+            <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#717783]" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar por tema ou título..."
+              className="w-full pl-11 pr-4 py-3 bg-[#f8f9fa] border-none rounded-xl focus:ring-2 focus:ring-[#005da7] transition-all"
+            />
           </div>
-          <div className="flex gap-2 flex-wrap">
-            {PUBLICO.map(p => (
-              <button key={p} onClick={() => setActivePublico(p)}
-                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${activePublico === p ? 'bg-[#ffe16d] text-[#221b00]' : 'bg-white border border-black/10 text-[#43474f] hover:bg-[#f3f4f5]'}`}>
-                <Users size={11} className="inline mr-1" />{p}
-              </button>
-            ))}
+
+          <div className="relative">
+            <button 
+              onClick={() => setIsFilterOpen(!isFilterOpen)}
+              className={cn(
+                "px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all",
+                isFilterOpen || activeCategory !== 'Todos' || activePublico !== 'Todos'
+                  ? "bg-[#005da7] text-white shadow-md"
+                  : "bg-[#f8f9fa] text-[#414751] hover:bg-[#edeeef]"
+              )}
+            >
+              <Filter size={18} />
+              Filtros
+              {(activeCategory !== 'Todos' || activePublico !== 'Todos') && (
+                <span className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
+              )}
+            </button>
+
+            <AnimatePresence>
+              {isFilterOpen && (
+                <>
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setIsFilterOpen(false)}
+                    className="fixed inset-0 z-[40]"
+                  />
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    className="absolute right-0 mt-2 w-[320px] md:w-[450px] bg-white rounded-3xl shadow-2xl border border-black/10 p-6 z-[50] space-y-6"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-black text-[#001e40] uppercase tracking-widest text-xs">Filtrar Biblioteca</h4>
+                      <button 
+                        onClick={() => {
+                          setActiveCategory('Todos');
+                          setActivePublico('Todos');
+                        }}
+                        className="text-[10px] font-black text-[#005da7] uppercase tracking-widest hover:underline"
+                      >
+                        Limpar Tudo
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-[#717783] uppercase tracking-widest">Categoria</label>
+                      <div className="flex gap-2 flex-wrap">
+                        {CATEGORIES.map(cat => (
+                          <button key={cat} onClick={() => setActiveCategory(cat)}
+                            className={cn(
+                              "px-3 py-1.5 rounded-full text-[10px] font-bold transition-all border",
+                              activeCategory === cat 
+                                ? "bg-[#001e40] text-white border-[#001e40]" 
+                                : "bg-white border-black/10 text-[#43474f] hover:bg-[#f3f4f5]"
+                            )}>
+                            {cat}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3 pt-4 border-t border-black/5">
+                      <label className="text-[10px] font-black text-[#717783] uppercase tracking-widest">Público Alvo</label>
+                      <div className="flex gap-2 flex-wrap">
+                        {PUBLICO.map(p => (
+                          <button key={p} onClick={() => setActivePublico(p)}
+                            className={cn(
+                              "px-4 py-1.5 rounded-full text-[10px] font-bold transition-all border",
+                              activePublico === p 
+                                ? "bg-yellow-400 text-[#221b00] border-yellow-400 shadow-sm" 
+                                : "bg-white border-black/10 text-[#43474f] hover:bg-[#f3f4f5]"
+                            )}>
+                            <Users size={12} className="inline mr-1" />{p}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 

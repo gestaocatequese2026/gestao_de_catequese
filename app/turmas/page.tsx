@@ -14,6 +14,7 @@ import { cn, getClassColor } from '@/lib/utils';
 import { ConfirmationModal } from '@/components/confirmation-modal';
 import { useAppStore, ClassItem } from '@/lib/store';
 import { ReportButton } from '@/components/report-button';
+import { createClient } from '@/utils/supabase/client';
 
 export default function Turmas() {
   const { classes, addClass, updateClass, deleteClass, isLoaded, getStudentsCount } = useAppStore();
@@ -21,9 +22,25 @@ export default function Turmas() {
   const [editingClass, setEditingClass] = useState<ClassItem | null>(null);
   const [classToDelete, setClassToDelete] = useState<string | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [communities, setCommunities] = useState<any[]>([]);
+  const [catechists, setCatechists] = useState<any[]>([]);
+  const [selectedCommunityId, setSelectedCommunityId] = useState<string>('');
+  const [selectedCatechistId, setSelectedCatechistId] = useState<string>('');
+  const supabase = createClient();
+
+  React.useEffect(() => {
+    async function loadResources() {
+      const { data: comms } = await supabase.from('communities').select('*').order('name');
+      const { data: cats } = await supabase.from('catechists').select('*').order('name');
+      if (comms) setCommunities(comms);
+      if (cats) setCatechists(cats);
+    }
+    loadResources();
+  }, []);
 
   const handleOpenModal = (cls: ClassItem | null = null) => {
     setEditingClass(cls);
+    setSelectedCommunityId(cls?.community_id || '');
     setIsModalOpen(true);
   };
 
@@ -60,6 +77,8 @@ export default function Turmas() {
     const time = formData.get('time') as string;
     const level = formData.get('level') as string;
     const location = formData.get('location') as string;
+    const community_id = formData.get('community_id') as string || undefined;
+    const catechist_id = formData.get('catechist_id') as string || undefined;
     
     let icon = 'BookOpen';
     if (name.includes('Crisma')) icon = 'Ticket';
@@ -73,7 +92,9 @@ export default function Turmas() {
         level,
         location,
         schedule: `${day}, ${time}`,
-        icon
+        icon,
+        community_id,
+        catechist_id
       });
     } else {
       await addClass({
@@ -83,7 +104,9 @@ export default function Turmas() {
         location,
         schedule: `${day}, ${time}`,
         status: 'Ativa',
-        icon
+        icon,
+        community_id,
+        catechist_id
       });
     }
     handleCloseModal();
@@ -302,6 +325,41 @@ export default function Turmas() {
                     className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#1a73e8] transition-all" 
                     placeholder="Ex: Turma de sábado de manhã" 
                   />
+                </div>
+
+                {/* Community Selection */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Comunidade</label>
+                    <select 
+                      name="community_id"
+                      value={selectedCommunityId}
+                      onChange={e => setSelectedCommunityId(e.target.value)}
+                      className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#1a73e8] transition-all"
+                    >
+                      <option value="">Paróquia Sede</option>
+                      {communities.map(comm => (
+                        <option key={comm.id} value={comm.id}>{comm.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Catechist Selection Filtered by Community */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[#717783]">Catequistas da Comunidade</label>
+                    <select 
+                      name="catechist_id"
+                      className="w-full bg-[#f3f3f3] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#1a73e8] transition-all"
+                    >
+                      <option value="">Selecionar Catequista...</option>
+                      {catechists
+                        .filter(cat => selectedCommunityId ? cat.community_id === selectedCommunityId : !cat.community_id)
+                        .map(cat => (
+                          <option key={cat.id} value={cat.id}>{cat.name}</option>
+                        ))}
+                    </select>
+                    <p className="text-[8px] text-[#717783] italic">Apenas catequistas vinculados a esta comunidade são listados.</p>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
