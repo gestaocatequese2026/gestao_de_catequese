@@ -1353,10 +1353,11 @@ export default function TurmaDetalhes() {
                 {meetings.filter(m => {
                   const monthMatch = monthFilter === 'Todos' || new Date(m.data + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'long' }).toLowerCase() === monthFilter.toLowerCase();
                   return monthMatch;
-                }).map((meeting) => (
+                }).map((meeting, index) => (
                   <MeetingCard 
                     key={meeting.id} 
                     meeting={meeting} 
+                    index={index}
                     onView={() => handleOpenModal(meeting)}
                     onPresent={() => startPresentation(meeting)}
                     onAttendance={() => handleOpenAttendanceModal(meeting, 'encontro')}
@@ -1401,48 +1402,54 @@ export default function TurmaDetalhes() {
                   </div>
                 </div>
               </div>
-              <div className="flex flex-col max-w-4xl mx-auto space-y-3">
+              <div className="bg-white rounded-3xl border border-black/15 shadow-sm max-w-5xl mx-auto overflow-hidden">
+                <div className="divide-y divide-[#edeeef]">
                 {catequizandosList.filter(c => c.name.toLowerCase().includes(searchCatequizando.toLowerCase())).map((catequizando, index) => (
                   <motion.div 
                     key={catequizando.id}
-                    initial={{ opacity: 0, y: 15 }}
+                    initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05, duration: 0.4, ease: "easeOut" }}
-                    whileHover={{ y: -2, transition: { duration: 0.2 } }}
-                    className={cn(
-                      "rounded-3xl p-5 border transition-all group flex items-center gap-4 relative shadow-sm hover:shadow-md",
-                      index % 4 === 0 ? "bg-blue-50/50 border-blue-100/50" :
-                      index % 4 === 1 ? "bg-rose-50/50 border-rose-100/50" :
-                      index % 4 === 2 ? "bg-emerald-50/50 border-emerald-100/50" :
-                      "bg-amber-50/50 border-amber-100/50"
-                    )}
+                    transition={{ delay: index * 0.05, duration: 0.3 }}
+                    className="flex items-center justify-between p-4 hover:bg-[#f8f9fa] transition-colors group relative"
                   >
-
-                    <Link href={`/turmas/${classId}/catequizando/${catequizando.id}`} className="flex-1 flex items-center gap-4">
-                      <div className="relative w-16 h-16 rounded-2xl overflow-hidden ring-4 ring-[#f8f9fa] shrink-0">
-                        {catequizando.avatar ? (
-                          <Image src={catequizando.avatar} alt={catequizando.name} fill className="object-cover" />
-                        ) : (
-                          <div className="w-full h-full bg-[#f8f9fa] flex items-center justify-center text-[#c1c7d3]">
-                            <Baby size={32} />
-                          </div>
-                        )}
+                    <Link href={`/turmas/${classId}/catequizando/${catequizando.id}`} className="flex-1 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
+                      <div className="flex items-center gap-4 sm:min-w-[300px]">
+                        <div className="relative w-12 h-12 rounded-full overflow-hidden border border-[#edeeef] shrink-0 bg-white">
+                          {catequizando.avatar ? (
+                            <Image src={catequizando.avatar} alt={catequizando.name} fill className="object-cover" />
+                          ) : (
+                            <div className="w-full h-full bg-[#f8f9fa] flex items-center justify-center text-[#c1c7d3]">
+                              <Baby size={24} />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex flex-col">
+                          <h3 className="font-manrope text-base font-bold text-[#1a1c1c] group-hover:text-[#005da7] transition-colors line-clamp-1">{catequizando.name}</h3>
+                          <span className="text-xs text-[#717783] sm:hidden mt-0.5">
+                             {catequizando.birthDate ? `${calculateAge(catequizando.birthDate)} anos • ${new Date(catequizando.birthDate + 'T12:00:00').toLocaleDateString('pt-BR')}` : 'Sem data de nascimento'}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0 pr-10">
-                        <h3 className="font-manrope text-lg font-bold text-[#1a1c1c] truncate">{catequizando.name}</h3>
-                        <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
-                          <span className="text-sm font-medium text-[#717783] flex items-center gap-1">
-                            {calculateAge(catequizando.birthDate)} Anos
-                          </span>
-                          <span className="text-sm font-medium text-[#717783] flex items-center gap-1 bg-white/50 px-2 py-0.5 rounded-full border border-black/5">
-                            {catequizando.birthDate ? new Date(catequizando.birthDate + 'T12:00:00').toLocaleDateString('pt-BR') : 'Sem data'}
-                          </span>
 
+                      <div className="hidden sm:flex flex-1 justify-between items-center text-sm pr-4">
+                        <div className="flex flex-col w-20">
+                           <span className="text-[10px] font-bold text-[#717783] uppercase tracking-widest mb-1">Idade</span>
+                           <span className="font-medium text-[#1a1c1c]">{catequizando.birthDate ? `${calculateAge(catequizando.birthDate)} anos` : '-'}</span>
+                        </div>
+                        <div className="flex flex-col w-32">
+                           <span className="text-[10px] font-bold text-[#717783] uppercase tracking-widest mb-1">Nascimento</span>
+                           <span className="font-medium text-[#1a1c1c]">
+                             {catequizando.birthDate ? new Date(catequizando.birthDate + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}
+                           </span>
+                        </div>
+                        <div className="flex flex-col w-24">
+                           <span className="text-[10px] font-bold text-[#717783] uppercase tracking-widest mb-1">Status</span>
+                           <span className="font-bold text-[#146c2e] bg-[#146c2e]/10 px-2 py-0.5 rounded-md self-start text-xs border border-[#146c2e]/20">Ativo</span>
                         </div>
                       </div>
                     </Link>
                     
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity absolute top-4 right-4 sm:relative sm:top-0 sm:right-0">
                       <ReportButton 
                         variant="chip"
                         iconOnly
@@ -1454,14 +1461,14 @@ export default function TurmaDetalhes() {
                       />
                       <button 
                         onClick={() => handleOpenCatequizandoModal(catequizando)}
-                        className="p-3 text-[#717783] hover:bg-[#f8f9fa] rounded-2xl transition-colors active:scale-95"
+                        className="p-2.5 text-[#717783] hover:bg-black/5 hover:text-[#1a1c1c] rounded-xl transition-colors active:scale-95"
                         title="Editar"
                       >
                         <Edit2 size={18} />
                       </button>
                       <button 
                         onClick={() => handleDeleteCatequizando(catequizando.id)}
-                        className="p-3 text-[#717783] hover:bg-red-50 hover:text-[#ba1a1a] rounded-2xl transition-colors active:scale-95"
+                        className="p-2.5 text-[#717783] hover:bg-red-50 hover:text-[#ba1a1a] rounded-xl transition-colors active:scale-95"
                         title="Excluir"
                       >
                         <Trash2 size={18} />
@@ -1470,13 +1477,14 @@ export default function TurmaDetalhes() {
                   </motion.div>
                 ))}
                 {catequizandosList.length === 0 && (
-                  <div className="py-20 text-center space-y-4">
-                    <div className="w-20 h-20 bg-[#f8f9fa] rounded-full flex items-center justify-center mx-auto text-[#c1c7d3]">
-                      <Baby size={40} />
+                  <div className="py-16 text-center space-y-4">
+                    <div className="w-16 h-16 bg-[#f8f9fa] border border-[#edeeef] rounded-full flex items-center justify-center mx-auto text-[#c1c7d3]">
+                      <Baby size={32} />
                     </div>
-                    <p className="text-[#717783] font-medium">Nenhum catequizando nesta turma.</p>
+                    <p className="text-[#717783] font-medium text-sm">Nenhum catequizando nesta turma.</p>
                   </div>
                 )}
+                </div>
               </div>
             </motion.div>
           )}
@@ -3360,8 +3368,9 @@ export default function TurmaDetalhes() {
   );
 }
 
-function MeetingCard({ meeting, onView, onPresent, onAttendance, onDelete, onStatusChange, viewMode = 'grid' }: { 
+function MeetingCard({ meeting, index = 0, onView, onPresent, onAttendance, onDelete, onStatusChange, viewMode = 'grid' }: { 
   meeting: Meeting, 
+  index?: number,
   onView: () => void, 
   onPresent: () => void, 
   onAttendance: () => void,
@@ -3369,57 +3378,79 @@ function MeetingCard({ meeting, onView, onPresent, onAttendance, onDelete, onSta
   onStatusChange: (status: MeetingStatus) => void,
   viewMode?: 'grid' | 'list'
 }) {
-  const statusBorderColors = {
-    'Planejado': 'border-[#1a73e8]/40',
-    'Realizado': 'border-[#146c2e]/40',
-    'Transferido': 'border-[#735c00]/40',
-    'Cancelado': 'border-[#ba1a1a]/40'
-  };
+  const meetingColors = [
+    { bg: "bg-[#f0f7ff]", border: "border-[#cce3ff]" },
+    { bg: "bg-[#fff0f5]", border: "border-[#ffccdd]" },
+    { bg: "bg-[#f0fff4]", border: "border-[#c1e6d1]" },
+    { bg: "bg-[#fff9e6]", border: "border-[#ffe6b3]" }
+  ];
+  const colorClass = meetingColors[index % meetingColors.length];
 
   if (viewMode === 'list') {
     return (
       <motion.div 
         whileHover={{ x: 4 }}
         className={cn(
-          "rounded-[24px] border-2 flex flex-row overflow-hidden transition-all group relative shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] bg-[#eaf8f1] h-32",
-          statusBorderColors[meeting.status] || "border-[#c1c7d3]/60"
+          "rounded-[24px] border flex flex-col sm:flex-row overflow-hidden transition-all group relative shadow-sm hover:shadow-md",
+          colorClass.bg, colorClass.border
         )}
       >
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden opacity-[0.04] z-0">
-          <span className="text-6xl font-black uppercase tracking-widest rotate-[-15deg] whitespace-nowrap">
-            {meeting.status}
+        {/* Date Section (Top on mobile, left on desktop) */}
+        <div className="relative sm:w-48 flex-shrink-0 z-10 sm:border-r border-b sm:border-b-0 border-black/10 p-4 flex sm:flex-col items-center justify-between sm:justify-center">
+          <span className="text-sm font-extrabold uppercase tracking-wider text-[#005da7]">
+            {new Date(meeting.data + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
           </span>
-        </div>
-        
-        <div className="relative w-32 md:w-48 h-full flex-shrink-0 z-10 bg-[#eaf8f1] border-r border-[#c1c7d3]/30">
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-2 z-10 text-center">
-            <span className="text-sm font-extrabold uppercase tracking-wider text-[#005da7]">
-              {new Date(meeting.data + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
-            </span>
-          </div>
+          <StatusBadge 
+            status={meeting.status} 
+            onStatusChange={onStatusChange} 
+            readOnly 
+            className="sm:hidden !text-[10px] !px-2 !py-1"
+          />
         </div>
 
-        <div className="flex-1 p-3 flex flex-col justify-between overflow-hidden z-10">
-          <div className="flex justify-between items-start gap-2">
+        {/* Content Section */}
+        <div className="flex-1 p-4 flex flex-col gap-3 overflow-hidden z-10">
+          <div className="flex justify-between items-start gap-4">
             <div className="overflow-hidden flex-1 text-left">
-              <h3 className="text-lg font-extrabold font-manrope text-[#1a1c1c] leading-tight line-clamp-1 mb-0.5">
+              <h3 className="text-lg font-extrabold font-manrope text-[#1a1c1c] leading-tight line-clamp-1 mb-1">
                 {meeting.tema}
               </h3>
               <p className="text-xs text-[#414751] font-bold flex items-center justify-start gap-1.5 truncate">
-                <BookOpen size={14} className="text-[#007AFF] flex-shrink-0" /> <span className="truncate">{meeting.leituraBiblica}</span>
+                <BookOpen size={14} className="text-[#007AFF] flex-shrink-0" /> <span className="truncate">{meeting.leituraBiblica || 'Sem leitura'}</span>
               </p>
             </div>
-            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 absolute top-2 right-2">
-              <button onClick={(e) => { e.stopPropagation(); onView(); }} className="p-1.5 bg-white hover:bg-[#f3f3f3] rounded-full text-[#717783] transition-all border border-[#edeeef]" title="Editar"><Edit2 size={12} /></button>
-              <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="p-1.5 bg-white hover:bg-red-50 rounded-full text-red-500 transition-all border border-[#edeeef]" title="Excluir"><Trash2 size={12} /></button>
+            
+            {/* Context Actions (Edit/Delete) */}
+            <div className="flex gap-1 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity absolute sm:relative top-3 right-3 sm:top-0 sm:right-0 bg-white/80 sm:bg-transparent backdrop-blur-sm sm:backdrop-blur-none p-1 sm:p-0 rounded-2xl">
+              <button 
+                onClick={(e) => { e.stopPropagation(); onView(); }} 
+                className="p-2 sm:p-2 bg-white sm:hover:bg-[#f3f3f3] shadow-sm sm:shadow-none rounded-xl sm:rounded-full text-[#717783] transition-all border border-[#edeeef]" 
+                title="Editar"
+              >
+                <Edit2 size={16} className="sm:w-4 sm:h-4" />
+              </button>
+              <button 
+                onClick={(e) => { e.stopPropagation(); onDelete(); }} 
+                className="p-2 sm:p-2 bg-white hover:bg-red-50 shadow-sm sm:shadow-none rounded-xl sm:rounded-full text-red-500 transition-all border border-[#edeeef]" 
+                title="Excluir"
+              >
+                <Trash2 size={16} className="sm:w-4 sm:h-4" />
+              </button>
             </div>
           </div>
 
-          <div className="flex items-center justify-end mt-1">
-            <div className="flex gap-2 w-full justify-end">
-               <button onClick={onView} className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#34C759] hover:bg-[#2eb350] rounded-lg text-[10px] font-bold uppercase tracking-wider text-white transition-all active:scale-95 shadow-sm"><Eye size={12} /> Abrir</button>
-              <button onClick={onAttendance} className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#007AFF] hover:bg-[#0056b3] rounded-lg text-[10px] font-bold uppercase tracking-wider text-white transition-all active:scale-95 shadow-sm"><UserCheck size={12} /> Chamada</button>
-              <button onClick={onPresent} className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gray-500 hover:bg-gray-600 rounded-lg text-[10px] font-bold uppercase tracking-wider text-white transition-all active:scale-95 shadow-sm"><Presentation size={12} /> Apresentar</button>
+          {/* Action Buttons */}
+          <div className="flex flex-wrap items-center justify-end gap-2 mt-auto pt-2 sm:pt-0">
+             <button onClick={onView} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 sm:py-2 bg-white sm:bg-[#34C759] border border-[#edeeef] sm:border-transparent hover:bg-[#f8f9fa] sm:hover:bg-[#2eb350] rounded-xl sm:rounded-xl text-xs font-bold uppercase tracking-wider text-[#1a1c1c] sm:text-white transition-all active:scale-95 shadow-sm">
+               <Eye size={16} /> <span className="sm:hidden md:inline">Abrir</span>
+             </button>
+            <button onClick={onAttendance} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 sm:py-2 bg-white sm:bg-[#007AFF] border border-[#edeeef] sm:border-transparent hover:bg-[#f8f9fa] sm:hover:bg-[#0056b3] rounded-xl sm:rounded-xl text-xs font-bold uppercase tracking-wider text-[#1a1c1c] sm:text-white transition-all active:scale-95 shadow-sm">
+              <UserCheck size={16} /> <span className="sm:hidden md:inline">Chamada</span>
+            </button>
+            <button onClick={onPresent} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 sm:py-2 bg-white sm:bg-gray-600 border border-[#edeeef] sm:border-transparent hover:bg-[#f8f9fa] sm:hover:bg-gray-700 rounded-xl sm:rounded-xl text-xs font-bold uppercase tracking-wider text-[#1a1c1c] sm:text-white transition-all active:scale-95 shadow-sm">
+              <Presentation size={16} /> <span className="sm:hidden md:inline">Apresentar</span>
+            </button>
+            <div className="hidden sm:block">
               <ReportButton 
                 variant="chip"
                 iconOnly
@@ -3438,21 +3469,13 @@ function MeetingCard({ meeting, onView, onPresent, onAttendance, onDelete, onSta
 
   return (
     <motion.div 
-      whileHover={{ 
-        y: -1
-      }}
+      whileHover={{ y: -1 }}
       className={cn(
-        "rounded-[24px] border-2 flex flex-col overflow-hidden transition-all group relative shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] bg-[#eaf8f1]",
-        statusBorderColors[meeting.status] || "border-[#c1c7d3]/60"
+        "rounded-[32px] border flex flex-col overflow-hidden transition-all group relative shadow-sm hover:shadow-md",
+         colorClass.bg, colorClass.border
       )}
     >
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden opacity-[0.04] z-0">
-        <span className="text-6xl font-black uppercase tracking-widest rotate-[-15deg] whitespace-nowrap">
-          {meeting.status}
-        </span>
-      </div>
-
-      <div className="relative h-24 w-full z-10 bg-[#eaf8f1] border-b border-[#c1c7d3]/30">
+      <div className="relative p-6 w-full z-10 border-b border-black/10 flex flex-col items-center justify-center text-center">
         <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
           <ReportButton 
             variant="chip"
@@ -3464,20 +3487,14 @@ function MeetingCard({ meeting, onView, onPresent, onAttendance, onDelete, onSta
             data={meeting}
           />
           <button 
-            onClick={(e) => {
-              e.stopPropagation();
-              onView();
-            }}
+            onClick={(e) => { e.stopPropagation(); onView(); }}
             className="p-1.5 bg-white hover:bg-[#f3f3f3] rounded-full text-[#717783] transition-all border border-[#edeeef]"
             title="Editar"
           >
             <Edit2 size={12} />
           </button>
           <button 
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
             className="p-1.5 bg-white hover:bg-red-50 rounded-full text-red-500 transition-all border border-[#edeeef]"
             title="Excluir"
           >
@@ -3485,47 +3502,25 @@ function MeetingCard({ meeting, onView, onPresent, onAttendance, onDelete, onSta
           </button>
         </div>
 
-        <div className="absolute inset-0 flex flex-col items-center justify-center p-4 z-10 text-center">
-          <div className="w-full">
-            <span className="text-sm font-extrabold uppercase tracking-wider text-[#005da7] mb-1 block">
-              {new Date(meeting.data + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
-            </span>
-            <h3 className="text-lg font-extrabold font-manrope text-[#1a1c1c] leading-tight line-clamp-2 transition-colors">
-              {meeting.tema}
-            </h3>
-          </div>
-        </div>
+        <span className="text-sm font-extrabold uppercase tracking-wider text-[#005da7] mb-2 block">
+          {new Date(meeting.data + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+        </span>
+        <h3 className="text-lg font-extrabold font-manrope text-[#1a1c1c] leading-tight line-clamp-2 transition-colors">
+          {meeting.tema}
+        </h3>
       </div>
 
       <div className="p-4 flex flex-col flex-1 z-10">
         <div className="flex-1 flex flex-col items-center text-center">
           <p className="text-sm text-[#414751] font-bold flex items-center justify-center gap-1.5 mb-3">
-            <BookOpen size={16} className="text-[#007AFF]" /> {meeting.leituraBiblica}
+            <BookOpen size={16} className="text-[#007AFF]" /> {meeting.leituraBiblica || 'Sem leitura'}
           </p>
         </div>
 
-        <div className="flex gap-2 pt-3 border-t border-[#c1c7d3]/30">
-           <button 
-            onClick={onView}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-[#34C759] hover:bg-[#2eb350] rounded-xl text-[10px] font-bold uppercase tracking-wider text-white transition-all active:scale-95 shadow-sm"
-          >
-            <Eye size={14} />
-            Abrir
-          </button>
-          <button 
-            onClick={onAttendance}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-[#007AFF] hover:bg-[#0056b3] rounded-xl text-[10px] font-bold uppercase tracking-wider text-white transition-all active:scale-95 shadow-sm"
-          >
-            <UserCheck size={14} />
-            Chamada
-          </button>
-          <button 
-            onClick={onPresent}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-gray-500 hover:bg-gray-600 rounded-xl text-[10px] font-bold uppercase tracking-wider text-white transition-all active:scale-95 shadow-sm"
-          >
-            <Presentation size={14} />
-            Apresentar
-          </button>
+        <div className="flex flex-wrap gap-2 pt-3 border-t border-[#c1c7d3]/30">
+           <button onClick={onView} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-white border border-[#edeeef] hover:bg-[#f8f9fa] rounded-xl text-[10px] font-bold uppercase tracking-wider text-[#1a1c1c] transition-all active:scale-95 shadow-sm"><Eye size={16} /> <span className="hidden sm:inline">Abrir</span></button>
+          <button onClick={onAttendance} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#007AFF] text-white hover:bg-[#0056b3] rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all active:scale-95 shadow-sm"><UserCheck size={16} /> <span className="hidden sm:inline">Chamada</span></button>
+          <button onClick={onPresent} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-gray-600 text-white hover:bg-gray-700 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all active:scale-95 shadow-sm"><Presentation size={16} /> <span className="hidden sm:inline">Telão</span></button>
         </div>
       </div>
     </motion.div>

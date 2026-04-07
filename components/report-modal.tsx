@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   X, Printer, Share2, Download, 
   FileText, Calendar, Church, Users, 
@@ -70,11 +71,14 @@ export function ReportModal({
     }
   };
 
-  if (!isOpen) return null;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
-  return (
+  if (!isOpen || !mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
-      <div className="fixed inset-0 z-[300] flex items-center justify-center sm:p-4 overflow-hidden print:p-0 print:static print:overflow-visible">
+      <div className="fixed inset-0 z-[1000] flex items-center justify-center sm:p-4 overflow-hidden print:p-0 print:static print:overflow-visible">
         {/* Backdrop - Hidden during print */}
         <motion.div 
           initial={{ opacity: 0 }}
@@ -432,6 +436,7 @@ export function ReportModal({
           `}</style>
         </motion.div>
       </div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
