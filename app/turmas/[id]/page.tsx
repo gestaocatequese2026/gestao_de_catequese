@@ -10,7 +10,7 @@ import {
   Presentation, Edit2, X, Clock, BookOpen, MessageSquare, 
   Heart, Info, ChevronRight, ChevronDown, Save, Library, Play, Pause, RotateCcw, 
   SkipForward, SkipBack, Maximize2,
-  Baby, Camera, Trash2, GripVertical, LayoutGrid, List, MapPin, FileText, Printer, Loader2
+  Baby, Camera, Trash2, GripVertical, LayoutGrid, List, MapPin, FileText, Printer, Loader2, Paperclip, ExternalLink
 } from 'lucide-react';
 import { motion, AnimatePresence, Reorder, useDragControls } from 'motion/react';
 import Image from 'next/image';
@@ -36,6 +36,12 @@ interface CatequeseRoteiroStep {
   tipo?: string;
 }
 
+interface MeetingAttachment {
+  name: string;
+  url: string;
+  type: string;
+}
+
 interface Meeting {
   id: string;
   tema: string;
@@ -45,6 +51,7 @@ interface Meeting {
   status: MeetingStatus;
   image?: string;
   roteiro: CatequeseRoteiroStep[];
+  attachments?: MeetingAttachment[];
 }
 
 export default function TurmaDetalhes() {
@@ -64,6 +71,7 @@ export default function TurmaDetalhes() {
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
   // Prepare data for Grade de Frequência
@@ -111,7 +119,8 @@ export default function TurmaDetalhes() {
             materialApoio: m.support_material,
             status: m.status,
             image: m.image_url,
-            roteiro: m.roteiro || []
+            roteiro: m.roteiro || [],
+            attachments: m.attachments || []
           })));
         }
 
@@ -618,6 +627,53 @@ export default function TurmaDetalhes() {
     return publicUrl;
   };
 
+  const handleUploadAttachment = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!selectedMeeting || !userId) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingAttachment(true);
+    try {
+      const ext = file.name.split('.').pop() || 'tmp';
+      const fileName = `${userId}/meetings/${Date.now()}.${ext}`;
+
+      const { data, error } = await supabase.storage
+        .from('attachments')
+        .upload(fileName, file, { contentType: file.type, upsert: true });
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage.from('attachments').getPublicUrl(data.path);
+
+      const newAttachment: MeetingAttachment = {
+        name: file.name,
+        url: publicUrl,
+        type: file.type
+      };
+
+      const updatedMeeting = {
+        ...selectedMeeting,
+        attachments: [...(selectedMeeting.attachments || []), newAttachment]
+      };
+
+      setSelectedMeeting(updatedMeeting);
+      showToast('Anexo adicionado com sucesso!');
+    } catch (err) {
+      console.error('Error uploading attachment:', err);
+      showToast('Erro ao enviar o anexo.', 'error');
+    } finally {
+      setIsUploadingAttachment(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleRemoveAttachment = (indexToRemove: number) => {
+    if (!selectedMeeting) return;
+    const newAttachments = (selectedMeeting.attachments || []).filter((_, i) => i !== indexToRemove);
+    setSelectedMeeting({ ...selectedMeeting, attachments: newAttachments });
+  };
+
+
   const handleSaveCatequizando = async () => {
     const nameInput = document.getElementById('catequizando-name') as HTMLInputElement;
     const birthDateInput = document.getElementById('catequizando-birthdate') as HTMLInputElement;
@@ -723,7 +779,8 @@ export default function TurmaDetalhes() {
           { id: 'compromisso', label: 'Compromisso', tempo: '', responsavel: '', descricao: '' },
           { id: 'avisos', label: 'Avisos', tempo: '', responsavel: '', descricao: '' },
           { id: 'oracaoFinal', label: 'Oração Final', tempo: '', responsavel: '', descricao: '' }
-        ]
+        ],
+        attachments: []
       };
       setSelectedMeeting(newMeeting);
     } else {
@@ -834,7 +891,8 @@ export default function TurmaDetalhes() {
           materialApoio: m.support_material,
           status: m.status,
           image: m.image_url,
-          roteiro: m.roteiro || []
+          roteiro: m.roteiro || [],
+          attachments: m.attachments || []
         }));
         setMeetings(mapped);
         if (selectedMeeting) {
@@ -875,7 +933,8 @@ export default function TurmaDetalhes() {
           descricao: formData.get(`roteiro-${step.id}-descricao`) as string,
           ...(step.id === 'oracaoInicial' ? { tipo: formData.get(`roteiro-${step.id}-tipo`) as string } : {})
         };
-      })
+      }),
+      attachments: selectedMeeting.attachments || []
     };
 
     let result;
@@ -906,7 +965,8 @@ export default function TurmaDetalhes() {
         materialApoio: m.support_material,
         status: m.status,
         image: m.image_url,
-        roteiro: m.roteiro || []
+        roteiro: m.roteiro || [],
+        attachments: m.attachments || []
       })));
     }
 
@@ -1011,7 +1071,8 @@ export default function TurmaDetalhes() {
         tempo: step.tempo,
         responsavel: step.responsavel,
         descricao: step.descricao
-      }))
+      })),
+      attachments: selectedMeeting.attachments || []
     };
     setSelectedMeeting(templateMeeting);
     setIsTemplateModalOpen(false);
@@ -1884,6 +1945,73 @@ export default function TurmaDetalhes() {
                           className="w-full justify-between py-4 px-4 text-sm font-bold border border-black/15"
                           position="bottom"
                         />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Attachments Section */}
+                  <div className="space-y-4 bg-white p-6 md:p-8 rounded-3xl border border-black/15 shadow-sm">
+                    <div className="flex justify-between items-center border-b border-black/15 pb-2">
+                      <h3 className="font-manrope font-bold text-xl text-[#001e40]">Anexos</h3>
+                      {isEditing && (
+                        <div className="relative">
+                          <input 
+                            type="file" 
+                            id="attachment-upload" 
+                            className="hidden" 
+                            onChange={handleUploadAttachment} 
+                          />
+                          <label 
+                            htmlFor="attachment-upload"
+                            className={cn(
+                              "flex items-center gap-2 text-xs font-black uppercase tracking-widest text-[#1a73e8] px-3 py-1.5 rounded-lg transition-all cursor-pointer",
+                              isUploadingAttachment ? "opacity-50 cursor-not-allowed" : "hover:bg-[#1a73e8]/5"
+                            )}
+                          >
+                            {isUploadingAttachment ? <Loader2 size={14} className="animate-spin" /> : <Paperclip size={14} />}
+                            {isUploadingAttachment ? 'Enviando...' : 'Adicionar Anexo'}
+                          </label>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {selectedMeeting?.attachments && selectedMeeting.attachments.length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {selectedMeeting.attachments.map((attachment, index) => (
+                          <div key={index} className="flex items-center justify-between p-3 border border-[#edeeef] rounded-xl bg-[#f8f9fa] group">
+                            <div className="flex flex-col overflow-hidden">
+                              <span className="text-sm font-bold text-[#1a1c1c] truncate" title={attachment.name}>
+                                {attachment.name}
+                              </span>
+                            </div>
+                            <div className="flex gap-2 shrink-0 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                              <a 
+                                href={attachment.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="p-2 text-[#005da7] bg-[#005da7]/10 hover:bg-[#005da7]/20 rounded-lg transition-colors"
+                                title="Visualizar"
+                              >
+                                <ExternalLink size={16} />
+                              </a>
+                              {isEditing && (
+                                <button 
+                                  type="button"
+                                  onClick={() => handleRemoveAttachment(index)} 
+                                  className="p-2 text-[#ba1a1a] bg-[#ba1a1a]/10 hover:bg-[#ba1a1a]/20 rounded-lg transition-colors"
+                                  title="Remover"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="py-6 flex flex-col items-center justify-center text-[#717783] bg-[#f8f9fa] rounded-xl border border-dashed border-[#c1c7d3]">
+                        <Paperclip size={24} className="text-[#c1c7d3] mb-2" />
+                        <span className="text-sm">Nenhum anexo adicionado.</span>
                       </div>
                     )}
                   </div>
