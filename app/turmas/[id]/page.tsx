@@ -1314,49 +1314,6 @@ export default function TurmaDetalhes() {
                   Novo Encontro
                 </button>
 
-                <div className="flex items-center gap-3 mb-6 print:hidden">
-                  <ReportButton 
-                    variant="button"
-                    type="turmas"
-                    reportType="grade-frequencia"
-                    reportTitle="Grade de Frequência"
-                    reportSubtitle={`Turma: ${currentClass?.name || ''}`}
-                    moduleName="Turmas"
-                    data={frequencyData}
-                  />
-                  <ReportButton 
-                    variant="button"
-                    type="turmas"
-                    reportType="relatorio-mensal"
-                    reportTitle="Relatório Mensal"
-                    reportSubtitle={`Turma: ${currentClass?.name || ''} - ${monthFilter}`}
-                    moduleName="Turmas"
-                    data={(() => {
-                      const filteredMeetings = meetings.filter(m => monthFilter === 'Todos' || new Date(m.data + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'long' }).toLowerCase() === monthFilter.toLowerCase());
-                      const totalPresence = attendanceRecords.filter(r => filteredMeetings.some(m => m.id === r.event_id) && r.status === 'Presente').length;
-                      const totalPossible = filteredMeetings.length * catequizandosList.length;
-                      
-                      return { 
-                        month: monthFilter, 
-                        class: currentClass, 
-                        meetings: filteredMeetings,
-                        students: catequizandosList,
-                        events: filteredMeetings.map(m => ({
-                          date: m.data,
-                          title: m.tema,
-                          presenceCount: attendanceRecords.filter(r => r.event_id === m.id && r.status === 'Presente').length,
-                          summary: m.leituraBiblica
-                        })),
-                        stats: {
-                          totalEvents: filteredMeetings.length,
-                          averageAttendance: totalPossible > 0 ? Math.round((totalPresence / totalPossible) * 100) : 0,
-                          justifiedAbsences: attendanceRecords.filter(r => filteredMeetings.some(m => m.id === r.event_id) && r.status === 'Faltante' && r.justification).length
-                        }
-                      };
-                    })()}
-                  />
-                </div>
-
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4 w-full mb-4">
                   <div className="flex items-center gap-2 w-full sm:w-auto">
                     <select 
@@ -3648,7 +3605,7 @@ function MeetingCard({ meeting, index = 0, onView, onPresent, onAttendance, onDe
         <div className="flex flex-wrap gap-2 pt-3 border-t border-[#c1c7d3]/30">
            <button onClick={onView} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-white border border-[#edeeef] hover:bg-[#f8f9fa] rounded-xl text-[10px] font-bold uppercase tracking-wider text-[#1a1c1c] transition-all active:scale-95 shadow-sm"><Eye size={16} /> <span className="hidden sm:inline">Abrir</span></button>
           <button onClick={onAttendance} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#007AFF] text-white hover:bg-[#0056b3] rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all active:scale-95 shadow-sm"><UserCheck size={16} /> <span className="hidden sm:inline">Chamada</span></button>
-          <button onClick={onPresent} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-gray-600 text-white hover:bg-gray-700 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all active:scale-95 shadow-sm"><Presentation size={16} /> <span className="hidden sm:inline">Telão</span></button>
+          <button onClick={onPresent} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-gray-600 text-white hover:bg-gray-700 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all active:scale-95 shadow-sm"><Presentation size={16} /> <span className="hidden sm:inline">Apresentar</span></button>
         </div>
       </div>
     </motion.div>
